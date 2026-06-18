@@ -42,4 +42,14 @@ final class RecurrenceRule
     {
         return new Period($start, $this->nextEnd($start));
     }
+
+    /** Start of the cycle that ends at $end — used as the proration denominator. */
+    public function previousStart(CarbonImmutable $end): CarbonImmutable
+    {
+        if (! $this->isRecurring()) {
+            return $end;
+        }
+
+        return $this->interval->subtract($end, $this->count);
+    }
 }

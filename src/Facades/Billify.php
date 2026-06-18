@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Facade;
 /**
  * @method static ?Invoice invoicePending(BillingAccount $account, ?string $currency = null)
  * @method static Payment recordPayment(Invoice $invoice, Money $amount, ?string $reference = null)
+ * @method static \Billify\Quoting\QuoteBuilder quote()
  * @method static InvoiceDriver driver()
  *
  * @see \Billify\Billify

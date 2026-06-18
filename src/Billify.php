@@ -12,6 +12,7 @@ use Billify\Models\Charge;
 use Billify\Models\Invoice;
 use Billify\Models\Payment;
 use Billify\Models\PaymentAllocation;
+use Billify\Quoting\QuoteBuilder;
 use Brick\Money\Money;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -97,6 +98,12 @@ final class Billify
 
             return $payment;
         });
+    }
+
+    /** Start a read-only quote (checkout rendering). No persistence. */
+    public function quote(): QuoteBuilder
+    {
+        return app(QuoteBuilder::class);
     }
 
     public function driver(): InvoiceDriver

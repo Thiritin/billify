@@ -114,6 +114,15 @@ Keep the EU rows current automatically:
 php artisan billify:vat-sync   # ibericode → billify_tax_rates (manual rows untouched)
 ```
 
+Run it on a schedule so EU rates stay fresh (in your app's `routes/console.php`
+or scheduler):
+
+```php
+use Illuminate\Support\Facades\Schedule;
+
+Schedule::command('billify:vat-sync')->weekly();
+```
+
 Other drivers: `ibericode` (live EU-only + VIES), `eu_vat` (static offline,
 good for tests), `flat`, `null`, or your own `TaxResolver`. Keeping rates legally
 correct is ultimately the host's responsibility; the engine makes it manageable.
@@ -121,9 +130,27 @@ correct is ultimately the host's responsibility; the engine makes it manageable.
 ## Proration & quoting
 
 `Prorator` computes second-precision proration for upgrades/downgrades and
-mid-cycle changes. The `Quote` builder (roadmap) renders a due-now + recurring
-breakdown for checkout pages without persisting anything — same calculators as
-real billing, so the quote always matches the eventual invoice.
+mid-cycle changes.
+
+`Billify::quote()` renders a **due-now + recurring breakdown for checkout pages**
+without persisting anything — same planner/prorator/tax stack as real billing, so
+the quote always matches the eventual invoice:
+
+```php
+$quote = Billify::quote()
+    ->anchor(AnchorMode::FixedDay, 1)            // align to the 1st
+    ->firstPeriod(FirstPeriodPolicy::ProratePlusFull) // stub + first full month
+    ->tax(new TaxContext(countryCode: 'DE'))
+    ->at($checkoutInstant)                        // deterministic
+    ->add($vpsPrice, qty: 1, label: 'VPS XL')
+    ->build();
+
+return $quote->toArray(); // JSON for the frontend: due_now, recurring, lines[]
+```
+
+Order a €10/mo plan on the 25th with `prorate_plus_full` → due now = 6-day stub
+(€2.00) + first full month (€10.00); then €10/mo from the 1st. Usage/metered
+lines come back flagged `estimated` with their rate.
 
 ## Testing
 
@@ -140,9 +167,11 @@ vendor/bin/pint      # format
 - [x] Proration engine + charge/invoice/payment flow
 - [x] Test suite — 34 tests green (unit calc core + feature against real Postgres:
       migrations, GiST no-double-bill guard, immutability trigger, invoicing flow)
-- [ ] Fluent `subscribe()` / `changePlan()` / `cancel()` managers
-- [ ] `quote()` / `checkout()` builders (JSON for frontends)
-- [ ] Usage rollup + anchoring/first-period planner
+- [x] Configurable multi-jurisdiction tax (registrations + rate table, Swiss-ready) + `billify:vat-sync`
+- [x] Anchoring / first-period planner (signup, fixed-day, prorate / prorate+full / free-until-anchor)
+- [x] `quote()` builder — due-now + recurring breakdown as JSON for checkout
+- [ ] Fluent `subscribe()` / `changePlan()` / `cancel()` managers (persist + accrue)
+- [ ] `checkout()` (quote → immediate invoice) + usage rollup job
 - [ ] Commitments & consolidated billing
 - [ ] Full Pest suite per use case in `DESIGN.md`
 

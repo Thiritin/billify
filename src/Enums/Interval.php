@@ -23,4 +23,15 @@ enum Interval: string
             self::Year => $from->addYearsNoOverflow($count),
         };
     }
+
+    /** Subtract `count` of this interval (calendar-aware). */
+    public function subtract(CarbonImmutable $from, int $count): CarbonImmutable
+    {
+        return match ($this) {
+            self::Day => $from->subDays($count),
+            self::Week => $from->subWeeks($count),
+            self::Month => $from->subMonthsNoOverflow($count),
+            self::Year => $from->subYearsNoOverflow($count),
+        };
+    }
 }

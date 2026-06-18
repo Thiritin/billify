@@ -578,10 +578,13 @@ interface TaxResolver {
     public function resolve(InvoiceLine $line, TaxContext $ctx): TaxResult; // rate, amount, label, exempt?
 }
 ```
-Ships **`EuVatResolver`** (default — per-country rates, B2B reverse-charge on
-valid VAT id, B2C destination rate, inclusive/exclusive), plus `NullTaxResolver`
-and `FlatRateTaxResolver`. App can bind a fully custom resolver. Rate table is a
-config/data file the app keeps current; the resolver logic is Billify's.
+Ships **`IbericodeVatResolver`** (default) — live EU rates via `ibericode/vat`
+(auto-refreshed, date-aware, so they never go stale waiting on a release) and
+**VIES** VAT-id validation: reverse charge requires an id that actually validates,
+and if VIES can't confirm it (down/invalid) VAT is charged (fail-safe). Also ships
+`EuVatResolver` (static offline fallback, hardcoded rates), `FlatRateTaxResolver`,
+`NullTaxResolver`. App can bind a fully custom resolver. Keeping rates current is
+the resolver's job (live service), not a hand-edited config file.
 
 ---
 

@@ -12,7 +12,11 @@ use Billify\Proration\Prorator;
 use Billify\Support\SystemClock;
 use Billify\Tax\EuVatResolver;
 use Billify\Tax\FlatRateTaxResolver;
+use Billify\Tax\IbericodeVatResolver;
 use Brick\Math\RoundingMode;
+use Ibericode\Vat\Countries;
+use Ibericode\Vat\Rates;
+use Ibericode\Vat\Validator;
 use Illuminate\Support\ServiceProvider;
 
 final class BillifyServiceProvider extends ServiceProvider
@@ -26,14 +30,15 @@ final class BillifyServiceProvider extends ServiceProvider
         // Tax resolver — selected by config('billify.tax.driver').
         $this->app->singleton(TaxResolver::class, function ($app) {
             $cfg = $app['config']['billify.tax'];
-            $key = $cfg['driver'] ?? 'eu_vat';
+            $key = $cfg['driver'] ?? 'ibericode';
             $class = $cfg['drivers'][$key] ?? EuVatResolver::class;
 
-            if ($class === FlatRateTaxResolver::class) {
-                return new FlatRateTaxResolver((float) ($cfg['flat_rate'] ?? 0.19));
-            }
-
-            return $app->make($class);
+            return match ($class) {
+                IbericodeVatResolver::class => $this->makeIbericodeResolver($cfg),
+                FlatRateTaxResolver::class => new FlatRateTaxResolver((float) ($cfg['flat_rate'] ?? 0.19)),
+                EuVatResolver::class => new EuVatResolver(merchantCountry: $cfg['merchant_country'] ?? 'DE'),
+                default => $app->make($class),
+            };
         });
 
         // Invoice driver — selected by config('billify.invoice.driver').
@@ -55,6 +60,22 @@ final class BillifyServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(Billify::class, fn ($app) => new Billify($app->make(InvoiceDriver::class)));
+    }
+
+    /** @param array<string,mixed> $cfg billify.tax config */
+    private function makeIbericodeResolver(array $cfg): IbericodeVatResolver
+    {
+        $ib = $cfg['ibericode'] ?? [];
+        $path = $ib['storage_path'] ?? storage_path('framework/cache/billify-vat-rates.json');
+        @mkdir(dirname((string) $path), 0775, true);
+
+        return new IbericodeVatResolver(
+            rates: new Rates((string) $path, (int) ($ib['refresh_interval'] ?? 43200)),
+            validator: new Validator,
+            countries: new Countries,
+            merchantCountry: $cfg['merchant_country'] ?? 'DE',
+            verifyVatId: (bool) ($ib['verify_vat_id'] ?? true),
+        );
     }
 
     public function boot(): void

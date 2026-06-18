@@ -74,12 +74,33 @@ Billify::recordPayment($invoice, Money::of('49.98', 'EUR'), 'pi_123');
     ],
 ],
 'tax' => [
-    'driver' => 'eu_vat', // eu_vat | flat | null, or your own
+    // ibericode = live EU rates + VIES (default) · eu_vat = static offline
+    // flat | null | your own
+    'driver' => 'ibericode',
 ],
 ```
 
 A driver implements `Billify\Contracts\InvoiceDriver`. Throwing from `issue()`
 is the failure boundary that preserves pending charges.
+
+### VAT / staying current
+
+The default `ibericode` driver pulls **live EU VAT rates** from the
+[`ibericode/vat`](https://github.com/ibericode/vat) service (auto-refreshed,
+date-aware) so rates don't rot waiting on a package release, and validates VAT ids
+against **VIES** before applying reverse charge. If VIES can't confirm an id, VAT
+is charged (fail-safe) rather than wrongly zero-rating.
+
+```php
+// config/billify.php → tax.ibericode
+'storage_path'     => storage_path('framework/cache/billify-vat-rates.json'),
+'refresh_interval' => 12 * 3600,
+'verify_vat_id'    => true, // VIES check before reverse-charge
+```
+
+Use `eu_vat` (static, offline) in tests/air-gapped environments. Keeping rates
+legally correct is ultimately the host's responsibility; the driver makes staying
+current automatic.
 
 ## Proration & quoting
 

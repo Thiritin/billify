@@ -7,6 +7,7 @@ use Billify\Enums\FirstPeriodPolicy;
 use Billify\Invoicing\Drivers\DatabaseInvoiceDriver;
 use Billify\Tax\EuVatResolver;
 use Billify\Tax\FlatRateTaxResolver;
+use Billify\Tax\IbericodeVatResolver;
 use Billify\Tax\NullTaxResolver;
 
 return [
@@ -59,13 +60,26 @@ return [
     | integrate lexoffice, EU VAT, etc.
     */
     'tax' => [
-        'driver' => env('BILLIFY_TAX_DRIVER', 'eu_vat'), // eu_vat | flat | null
+        // ibericode = live EU rates + VIES (recommended). eu_vat = static offline
+        // fallback (hardcoded rates). flat / null for testing.
+        'driver' => env('BILLIFY_TAX_DRIVER', 'ibericode'),
         'drivers' => [
+            'ibericode' => IbericodeVatResolver::class,
             'eu_vat' => EuVatResolver::class,
             'flat' => FlatRateTaxResolver::class,
             'null' => NullTaxResolver::class,
         ],
         'flat_rate' => env('BILLIFY_TAX_FLAT_RATE', 0.19),
+        'merchant_country' => env('BILLIFY_MERCHANT_COUNTRY', 'DE'),
+
+        // ibericode driver settings
+        'ibericode' => [
+            // Writable path for the auto-refreshed rates cache.
+            'storage_path' => env('BILLIFY_VAT_RATES_PATH', storage_path('framework/cache/billify-vat-rates.json')),
+            'refresh_interval' => (int) env('BILLIFY_VAT_REFRESH', 12 * 3600), // seconds
+            // Verify VAT ids against VIES before reverse-charging. Off ⇒ trust presence.
+            'verify_vat_id' => filter_var(env('BILLIFY_VERIFY_VAT_ID', true), FILTER_VALIDATE_BOOLEAN),
+        ],
     ],
 
     'invoice' => [

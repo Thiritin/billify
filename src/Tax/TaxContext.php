@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Billify\Tax;
 
+use DateTimeInterface;
+
 /** Inputs a tax resolver needs: where the customer is and their status. */
 final class TaxContext
 {
@@ -13,6 +15,7 @@ final class TaxContext
         public readonly ?string $vatId = null,
         public readonly bool $taxInclusive = false,
         public readonly ?string $merchantCountry = null,
+        public readonly ?DateTimeInterface $date = null,  // supply date → historical rate
     ) {}
 
     /** @param array<string,mixed> $profile A BillingAccount tax_profile. */

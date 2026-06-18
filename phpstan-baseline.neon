@@ -1,0 +1,319 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Access to an undefined property Billify\\Models\\Invoice\:\:\$account_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Billify.php
+
+		-
+			message: '#^Access to an undefined property Billify\\Models\\Invoice\:\:\$paid_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Billify.php
+
+		-
+			message: '#^Instanceof between Brick\\Money\\Money and Brick\\Money\\Money will always evaluate to true\.$#'
+			identifier: instanceof.alwaysTrue
+			count: 1
+			path: src/Casts/MoneyCast.php
+
+		-
+			message: '#^Instanceof between Billify\\Support\\Period and Billify\\Support\\Period will always evaluate to true\.$#'
+			identifier: instanceof.alwaysTrue
+			count: 1
+			path: src/Casts/PeriodCast.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$account_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Charges/ChargeAccruer.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$amount_minor\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Charges/ChargeAccruer.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$currency\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Charges/ChargeAccruer.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Charges/ChargeAccruer.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$unit_rate\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Charges/ChargeAccruer.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:amountFor\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Charges/ChargeAccruer.php
+
+		-
+			message: '#^Parameter \#2 \$price of method Billify\\Charges\\ChargeAccruer\:\:prorate\(\) expects Billify\\Models\\Price, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Charges/ChargeAccruer.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: src/Charges/ChargeAccruer.php
+
+		-
+			message: '#^Access to an undefined property Billify\\Models\\Charge\:\:\$currency\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Charge.php
+
+		-
+			message: '#^Access to an undefined property Billify\\Models\\Commitment\:\:\$currency\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Commitment.php
+
+		-
+			message: '#^Access to an undefined property Billify\\Models\\Commitment\:\:\$rate_minor\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Commitment.php
+
+		-
+			message: '#^Access to an undefined property Billify\\Models\\Coupon\:\:\$max_redemptions\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Coupon.php
+
+		-
+			message: '#^Access to an undefined property Billify\\Models\\Coupon\:\:\$redeemed_count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Coupon.php
+
+		-
+			message: '#^Access to an undefined property Billify\\Models\\Coupon\:\:\$valid_from\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Coupon.php
+
+		-
+			message: '#^Access to an undefined property Billify\\Models\\Coupon\:\:\$valid_to\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Coupon.php
+
+		-
+			message: '#^Access to an undefined property Billify\\Models\\CreditNote\:\:\$amount_minor\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/CreditNote.php
+
+		-
+			message: '#^Access to an undefined property Billify\\Models\\CreditNote\:\:\$currency\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/CreditNote.php
+
+		-
+			message: '#^Access to an undefined property Billify\\Models\\Invoice\:\:\$due_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Invoice.php
+
+		-
+			message: '#^Access to an undefined property Billify\\Models\\InvoiceLine\:\:\$amount_minor\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/InvoiceLine.php
+
+		-
+			message: '#^Access to an undefined property Billify\\Models\\InvoiceLine\:\:\$currency\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/InvoiceLine.php
+
+		-
+			message: '#^Access to an undefined property Billify\\Models\\InvoiceLine\:\:\$tax_minor\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/InvoiceLine.php
+
+		-
+			message: '#^Access to an undefined property Billify\\Models\\ItemOption\:\:\$value\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/ItemOption.php
+
+		-
+			message: '#^Access to an undefined property Billify\\Models\\MeterDimension\:\:\$cap_minor\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/MeterDimension.php
+
+		-
+			message: '#^Access to an undefined property Billify\\Models\\MeterDimension\:\:\$currency\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Models/MeterDimension.php
+
+		-
+			message: '#^Access to an undefined property Billify\\Models\\Payment\:\:\$amount_minor\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Payment.php
+
+		-
+			message: '#^Access to an undefined property Billify\\Models\\Payment\:\:\$currency\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Payment.php
+
+		-
+			message: '#^Method Billify\\Models\\Product\:\:priceFor\(\) should return Billify\\Models\\Price\|null but returns Illuminate\\Database\\Eloquent\\Model\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Models/Product.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: \(Carbon\\CarbonImmutable\|null\), Closure\(Billify\\Models\\SubscriptionItem\)\: \(Carbon\\CarbonImmutable\|null\) given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Models/Subscription.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$billing_mode\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/SubscriptionItem.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>billing_mode" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: src/Models/SubscriptionItem.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Quoting/QuoteBuilder.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: src/Quoting/QuoteBuilder.php
+
+		-
+			message: '#^Access to an undefined property Billify\\Models\\BillingAccount\:\:\$owner_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Subscriptions/SubscriptionBuilder.php
+
+		-
+			message: '#^Access to an undefined property Billify\\Models\\BillingAccount\:\:\$owner_type\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Subscriptions/SubscriptionBuilder.php
+
+		-
+			message: '#^Access to an undefined property Billify\\Models\\Price\:\:\$product_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Subscriptions/SubscriptionBuilder.php
+
+		-
+			message: '#^Access to an undefined property Billify\\Models\\Subscription\:\:\$account_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Subscriptions/SubscriptionBuilder.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Subscriptions/SubscriptionBuilder.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: src/Subscriptions/SubscriptionBuilder.php
+
+		-
+			message: '#^Access to an undefined property Billify\\Models\\Price\:\:\$product_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Subscriptions/SubscriptionManager.php
+
+		-
+			message: '#^Access to an undefined property Billify\\Models\\Subscription\:\:\$account_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Subscriptions/SubscriptionManager.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Subscriptions/SubscriptionManager.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:amountFor\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Subscriptions/SubscriptionManager.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:isRecurring\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Subscriptions/SubscriptionManager.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:recurrence\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Subscriptions/SubscriptionManager.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: \(Billify\\Support\\Period\|null\), Closure\(Billify\\Models\\SubscriptionItem\)\: \(Billify\\Support\\Period\|null\) given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Subscriptions/SubscriptionManager.php
+
+		-
+			message: '#^Parameter \#1 \$item of method Billify\\Subscriptions\\SubscriptionManager\:\:renewItem\(\) expects Billify\\Models\\SubscriptionItem, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Subscriptions/SubscriptionManager.php
+
+		-
+			message: '#^Parameter \#2 \$sub of method Billify\\Subscriptions\\SubscriptionManager\:\:prorationCharge\(\) expects Billify\\Models\\Subscription, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 2
+			path: src/Subscriptions/SubscriptionManager.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>end" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: src/Subscriptions/SubscriptionManager.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: src/Subscriptions/SubscriptionManager.php

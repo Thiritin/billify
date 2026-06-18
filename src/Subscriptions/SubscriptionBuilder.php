@@ -209,7 +209,7 @@ final class SubscriptionBuilder
             'kind' => LineKind::OneOff,
             'billing_mode' => $item->billingMode(),
             'state' => ChargeState::Pending,
-            'description' => $price->product?->name ?? 'One-off',
+            'description' => $price->product->name ?? 'One-off',
             'quantity' => $item->quantity,
             'unit_minor' => $price->amount_minor,
             'amount_minor' => $amount->getMinorAmount()->toInt(),

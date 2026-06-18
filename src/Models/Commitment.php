@@ -14,6 +14,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * @property Interval $term_interval
  * @property int $term_count
+ * @property int $rate_minor
+ * @property string $currency
  * @property CommitmentState $state
  * @property ?Period $term
  */
@@ -39,6 +41,7 @@ class Commitment extends BillifyModel
         ];
     }
 
+    /** @return BelongsTo<SubscriptionItem, $this> */
     public function item(): BelongsTo
     {
         return $this->belongsTo(SubscriptionItem::class, 'item_id');

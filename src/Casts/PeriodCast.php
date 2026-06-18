@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * Casts a Postgres tstzrange column to/from a Period value object.
  *
- * @implements CastsAttributes<Period|null, Period|null>
+ * @implements CastsAttributes<Period|null, mixed>
  */
 final class PeriodCast implements CastsAttributes
 {
@@ -24,6 +24,10 @@ final class PeriodCast implements CastsAttributes
         return Period::fromRange((string) $value);
     }
 
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
     public function set(Model $model, string $key, mixed $value, array $attributes): array
     {
         if ($value === null) {

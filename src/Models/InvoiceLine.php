@@ -14,7 +14,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * @property LineKind $kind
  * @property Money $amount
+ * @property int $amount_minor
  * @property float $tax_rate
+ * @property int $tax_minor
+ * @property string $currency
  * @property ?Period $covers
  */
 class InvoiceLine extends BillifyModel
@@ -42,11 +45,13 @@ class InvoiceLine extends BillifyModel
         ];
     }
 
+    /** @return BelongsTo<Invoice, $this> */
     public function invoice(): BelongsTo
     {
         return $this->belongsTo(Invoice::class, 'invoice_id');
     }
 
+    /** @return BelongsTo<Charge, $this> */
     public function charge(): BelongsTo
     {
         return $this->belongsTo(Charge::class, 'charge_id');

@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property LineKind $kind
  * @property Money $amount
  * @property int $amount_minor
+ * @property string $currency
  * @property ?Period $covers
  */
 class Charge extends BillifyModel
@@ -48,16 +49,19 @@ class Charge extends BillifyModel
         ];
     }
 
+    /** @return BelongsTo<BillingAccount, $this> */
     public function account(): BelongsTo
     {
         return $this->belongsTo(BillingAccount::class, 'account_id');
     }
 
+    /** @return BelongsTo<Subscription, $this> */
     public function subscription(): BelongsTo
     {
         return $this->belongsTo(Subscription::class, 'subscription_id');
     }
 
+    /** @return BelongsTo<Invoice, $this> */
     public function invoice(): BelongsTo
     {
         return $this->belongsTo(Invoice::class, 'invoice_id');

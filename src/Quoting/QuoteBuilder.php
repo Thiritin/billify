@@ -85,7 +85,7 @@ final class QuoteBuilder
 
     public function add(Price $price, float $qty = 1, ?string $label = null): self
     {
-        $this->items[] = ['price' => $price, 'qty' => $qty, 'label' => $label ?? $price->product?->name ?? 'Item'];
+        $this->items[] = ['price' => $price, 'qty' => $qty, 'label' => $label ?? $price->product->name ?? 'Item'];
 
         return $this;
     }

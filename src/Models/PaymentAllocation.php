@@ -19,11 +19,13 @@ class PaymentAllocation extends BillifyModel
         return ['amount_minor' => 'integer'];
     }
 
+    /** @return BelongsTo<Payment, $this> */
     public function payment(): BelongsTo
     {
         return $this->belongsTo(Payment::class, 'payment_id');
     }
 
+    /** @return BelongsTo<Invoice, $this> */
     public function invoice(): BelongsTo
     {
         return $this->belongsTo(Invoice::class, 'invoice_id');

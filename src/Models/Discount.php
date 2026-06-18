@@ -20,6 +20,7 @@ class Discount extends BillifyModel
         return ['remaining_cycles' => 'integer'];
     }
 
+    /** @return BelongsTo<Coupon, $this> */
     public function coupon(): BelongsTo
     {
         return $this->belongsTo(Coupon::class, 'coupon_id');

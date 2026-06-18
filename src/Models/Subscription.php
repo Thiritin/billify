@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 /**
  * @property string $id
+ * @property string $account_id
  * @property string $currency
  * @property SubscriptionState $state
  * @property AnchorMode $anchor_mode
@@ -46,6 +47,7 @@ class Subscription extends BillifyModel
         ];
     }
 
+    /** @return BelongsTo<BillingAccount, $this> */
     public function account(): BelongsTo
     {
         return $this->belongsTo(BillingAccount::class, 'account_id');
@@ -56,11 +58,13 @@ class Subscription extends BillifyModel
         return $this->morphTo('customer', 'customer_type', 'customer_id');
     }
 
+    /** @return HasMany<SubscriptionItem, $this> */
     public function items(): HasMany
     {
         return $this->hasMany(SubscriptionItem::class, 'subscription_id');
     }
 
+    /** @return HasMany<Charge, $this> */
     public function charges(): HasMany
     {
         return $this->hasMany(Charge::class, 'subscription_id');

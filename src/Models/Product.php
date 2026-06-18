@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property string $id
  * @property string $type
  * @property string $slug
+ * @property string $name
  * @property PricingModel $pricing_model
  * @property bool $is_proratable
  * @property array $config
@@ -39,11 +40,13 @@ class Product extends BillifyModel
         return $this->morphTo('billable', 'billable_type', 'billable_id');
     }
 
+    /** @return HasMany<Price, $this> */
     public function prices(): HasMany
     {
         return $this->hasMany(Price::class, 'product_id');
     }
 
+    /** @return HasMany<MeterDimension, $this> */
     public function meterDimensions(): HasMany
     {
         return $this->hasMany(MeterDimension::class, 'product_id');

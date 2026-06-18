@@ -12,6 +12,9 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 /**
  * @property string $id
+ * @property ?string $parent_id
+ * @property string $owner_type
+ * @property string $owner_id
  * @property string $currency
  * @property array $tax_profile
  * @property int $balance_minor
@@ -36,21 +39,25 @@ class BillingAccount extends BillifyModel
         return $this->morphTo('owner', 'owner_type', 'owner_id');
     }
 
+    /** @return BelongsTo<self, $this> */
     public function parent(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_id');
     }
 
+    /** @return HasMany<self, $this> */
     public function children(): HasMany
     {
         return $this->hasMany(self::class, 'parent_id');
     }
 
+    /** @return HasMany<Subscription, $this> */
     public function subscriptions(): HasMany
     {
         return $this->hasMany(Subscription::class, 'account_id');
     }
 
+    /** @return HasMany<Invoice, $this> */
     public function invoices(): HasMany
     {
         return $this->hasMany(Invoice::class, 'account_id');

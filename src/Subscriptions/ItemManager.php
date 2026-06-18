@@ -54,7 +54,7 @@ final class ItemManager
 
             $this->charge($item, 'addon', $addon->id, LineKind::Addon,
                 $this->prorate($item, $price->amountFor($qty), $at),
-                $price->product?->name ?? 'Addon');
+                $price->product->name ?? 'Addon');
 
             return $addon;
         });
@@ -69,7 +69,7 @@ final class ItemManager
 
         $this->charge($item, 'addon', $addon->id, LineKind::Credit,
             $this->prorate($item, $full, $at)->negated(),
-            'Removed '.($addon->price->product?->name ?? 'addon'));
+            'Removed '.($addon->price->product->name ?? 'addon'));
 
         $addon->forceFill(['state' => ItemState::Canceled])->save();
     }

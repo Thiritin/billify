@@ -113,8 +113,8 @@ final class SubscriptionManager
                 $unusedOld = $this->prorator->for($period, $at, $oldFull)->amount();
                 $proratedNew = $this->prorator->for($period, $at, $newFull)->amount();
 
-                $this->prorationCharge($item, $sub, LineKind::Credit, $unusedOld->negated(), 'Unused '.($item->price->product?->name ?? 'plan'));
-                $this->prorationCharge($item, $sub, LineKind::Prorated, $proratedNew, 'Upgrade '.($newPrice->product?->name ?? 'plan'));
+                $this->prorationCharge($item, $sub, LineKind::Credit, $unusedOld->negated(), 'Unused '.($item->price->product->name ?? 'plan'));
+                $this->prorationCharge($item, $sub, LineKind::Prorated, $proratedNew, 'Upgrade '.($newPrice->product->name ?? 'plan'));
             }
 
             $item->forceFill(['price_id' => $newPrice->id, 'product_id' => $newPrice->product_id])->save();

@@ -8,6 +8,12 @@ use Billify\Enums\CreditState;
 use Brick\Money\Money;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property CreditState $state
+ * @property int $amount_minor
+ * @property int $tax_minor
+ * @property string $currency
+ */
 class CreditNote extends BillifyModel
 {
     protected $table = 'billify_credit_notes';
@@ -28,6 +34,7 @@ class CreditNote extends BillifyModel
         ];
     }
 
+    /** @return BelongsTo<Invoice, $this> */
     public function invoice(): BelongsTo
     {
         return $this->belongsTo(Invoice::class, 'invoice_id');

@@ -17,6 +17,9 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 /**
  * @property string $id
+ * @property string $subscription_id
+ * @property string $product_id
+ * @property string $price_id
  * @property float $quantity
  * @property ?BillingMode $billing_mode
  * @property ItemState $state
@@ -44,16 +47,19 @@ class SubscriptionItem extends BillifyModel
         ];
     }
 
+    /** @return BelongsTo<Subscription, $this> */
     public function subscription(): BelongsTo
     {
         return $this->belongsTo(Subscription::class, 'subscription_id');
     }
 
+    /** @return BelongsTo<Product, $this> */
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class, 'product_id');
     }
 
+    /** @return BelongsTo<Price, $this> */
     public function price(): BelongsTo
     {
         return $this->belongsTo(Price::class, 'price_id');
@@ -64,21 +70,25 @@ class SubscriptionItem extends BillifyModel
         return $this->morphTo('resource', 'resource_type', 'resource_id');
     }
 
+    /** @return HasMany<Addon, $this> */
     public function addons(): HasMany
     {
         return $this->hasMany(Addon::class, 'item_id');
     }
 
+    /** @return HasMany<ItemOption, $this> */
     public function options(): HasMany
     {
         return $this->hasMany(ItemOption::class, 'item_id');
     }
 
+    /** @return HasOne<Commitment, $this> */
     public function commitment(): HasOne
     {
         return $this->hasOne(Commitment::class, 'item_id');
     }
 
+    /** @return HasMany<UsageRecord, $this> */
     public function usageRecords(): HasMany
     {
         return $this->hasMany(UsageRecord::class, 'item_id');
@@ -87,7 +97,7 @@ class SubscriptionItem extends BillifyModel
     /** Effective billing mode (item override → price → in-advance default). */
     public function billingMode(): BillingMode
     {
-        return $this->billing_mode ?? $this->price?->billing_mode ?? BillingMode::InAdvance;
+        return $this->billing_mode ?? $this->price->billing_mode ?? BillingMode::InAdvance;
     }
 
     /** Amount for one full period: committed rate while under an active commitment, else price. */

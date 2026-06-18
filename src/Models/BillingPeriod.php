@@ -30,6 +30,7 @@ class BillingPeriod extends BillifyModel
         ];
     }
 
+    /** @return BelongsTo<SubscriptionItem, $this> */
     public function item(): BelongsTo
     {
         return $this->belongsTo(SubscriptionItem::class, 'item_id');

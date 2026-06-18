@@ -13,7 +13,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $key
  * @property Aggregation $aggregation
  * @property string $rate high-precision per-unit rate (major units)
+ * @property string $currency
  * @property float $included_qty
+ * @property ?int $cap_minor
  */
 class MeterDimension extends BillifyModel
 {
@@ -34,6 +36,7 @@ class MeterDimension extends BillifyModel
         ];
     }
 
+    /** @return BelongsTo<Product, $this> */
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class, 'product_id');

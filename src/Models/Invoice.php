@@ -6,11 +6,13 @@ namespace Billify\Models;
 
 use Billify\Enums\InvoiceState;
 use Brick\Money\Money;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property string $id
+ * @property string $account_id
  * @property ?string $number
  * @property string $driver
  * @property InvoiceState $state
@@ -19,6 +21,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $tax_minor
  * @property int $total_minor
  * @property int $paid_minor
+ * @property ?CarbonImmutable $due_at
+ * @property ?CarbonImmutable $paid_at
  */
 class Invoice extends BillifyModel
 {
@@ -42,26 +46,31 @@ class Invoice extends BillifyModel
         ];
     }
 
+    /** @return BelongsTo<BillingAccount, $this> */
     public function account(): BelongsTo
     {
         return $this->belongsTo(BillingAccount::class, 'account_id');
     }
 
+    /** @return HasMany<InvoiceLine, $this> */
     public function lines(): HasMany
     {
         return $this->hasMany(InvoiceLine::class, 'invoice_id');
     }
 
+    /** @return HasMany<Charge, $this> */
     public function charges(): HasMany
     {
         return $this->hasMany(Charge::class, 'invoice_id');
     }
 
+    /** @return HasMany<CreditNote, $this> */
     public function creditNotes(): HasMany
     {
         return $this->hasMany(CreditNote::class, 'invoice_id');
     }
 
+    /** @return HasMany<PaymentAllocation, $this> */
     public function payments(): HasMany
     {
         return $this->hasMany(PaymentAllocation::class, 'invoice_id');

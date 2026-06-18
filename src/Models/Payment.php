@@ -8,6 +8,10 @@ use Brick\Money\Money;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property int $amount_minor
+ * @property string $currency
+ */
 class Payment extends BillifyModel
 {
     protected $table = 'billify_payments';
@@ -25,11 +29,13 @@ class Payment extends BillifyModel
         ];
     }
 
+    /** @return BelongsTo<BillingAccount, $this> */
     public function account(): BelongsTo
     {
         return $this->belongsTo(BillingAccount::class, 'account_id');
     }
 
+    /** @return HasMany<PaymentAllocation, $this> */
     public function allocations(): HasMany
     {
         return $this->hasMany(PaymentAllocation::class, 'payment_id');

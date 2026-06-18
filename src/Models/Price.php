@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property string $id
+ * @property string $product_id
  * @property string $currency
  * @property int $amount_minor
  * @property Money $amount
@@ -59,6 +60,7 @@ class Price extends BillifyModel
         ];
     }
 
+    /** @return BelongsTo<Product, $this> */
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class, 'product_id');

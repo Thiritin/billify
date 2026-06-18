@@ -15,6 +15,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property DiscountType $type
  * @property float $value
  * @property ?int $value_minor
+ * @property ?int $max_redemptions
+ * @property int $redeemed_count
+ * @property ?CarbonImmutable $valid_from
+ * @property ?CarbonImmutable $valid_to
  */
 class Coupon extends BillifyModel
 {
@@ -41,6 +45,7 @@ class Coupon extends BillifyModel
         ];
     }
 
+    /** @return HasMany<Discount, $this> */
     public function discounts(): HasMany
     {
         return $this->hasMany(Discount::class, 'coupon_id');

@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Model;
  * Usage in $casts:  'amount' => MoneyCast::class.':amount_minor,currency'
  * Defaults to {attribute}_minor + sibling `currency` column when no args given.
  *
- * @implements CastsAttributes<Money|null, Money|null>
+ * @implements CastsAttributes<Money|null, mixed>
  */
 final class MoneyCast implements CastsAttributes
 {
@@ -36,6 +36,10 @@ final class MoneyCast implements CastsAttributes
         return Money::ofMinor((int) $minor, $currency);
     }
 
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
     public function set(Model $model, string $key, mixed $value, array $attributes): array
     {
         $amountCol = $this->amountColumn ?? "{$key}_minor";

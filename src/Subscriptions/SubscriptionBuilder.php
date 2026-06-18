@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Billify\Subscriptions;
 
 use Billify\Anchoring\PeriodPlanner;
+use Billify\Billify;
 use Billify\Charges\ChargeAccruer;
 use Billify\Contracts\Clock;
 use Billify\Enums\AnchorMode;
@@ -146,6 +147,16 @@ final class SubscriptionBuilder
 
             return $sub->refresh();
         });
+    }
+
+    /** Create the subscription and immediately invoice the first cycle's charges. */
+    public function checkout(): Checkout
+    {
+        $sub = $this->create();
+        $account = BillingAccount::findOrFail($sub->account_id);
+        $invoice = app(Billify::class)->invoicePending($account);
+
+        return new Checkout($sub, $invoice);
     }
 
     /** @param array{price:Price,qty:float,resource:?Model} $row */

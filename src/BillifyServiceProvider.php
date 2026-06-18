@@ -20,6 +20,7 @@ use Billify\Tax\DatabaseTaxResolver;
 use Billify\Tax\EuVatResolver;
 use Billify\Tax\FlatRateTaxResolver;
 use Billify\Tax\IbericodeVatResolver;
+use Billify\Usage\UsageRollup;
 use Brick\Math\RoundingMode;
 use Ibericode\Vat\Countries;
 use Ibericode\Vat\Rates;
@@ -84,6 +85,7 @@ final class BillifyServiceProvider extends ServiceProvider
 
         $this->app->singleton(PeriodPlanner::class);
         $this->app->singleton(ChargeAccruer::class, fn ($app) => new ChargeAccruer($app->make(Prorator::class)));
+        $this->app->singleton(UsageRollup::class);
 
         // Fresh builder per quote (stateful).
         $this->app->bind(QuoteBuilder::class, fn ($app) => new QuoteBuilder(

@@ -15,9 +15,12 @@ use Billify\Models\PaymentAllocation;
 use Billify\Models\Price;
 use Billify\Models\Subscription;
 use Billify\Models\SubscriptionItem;
+use Billify\Models\UsageRecord;
 use Billify\Quoting\QuoteBuilder;
 use Billify\Subscriptions\SubscriptionBuilder;
 use Billify\Subscriptions\SubscriptionManager;
+use Billify\Support\Period;
+use Billify\Usage\UsageRollup;
 use Brick\Money\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
@@ -121,6 +124,12 @@ final class Billify
         return $customer ? $builder->for($customer) : $builder;
     }
 
+    /** Begin a checkout — subscribe then immediately invoice. End with ->checkout(). */
+    public function checkout(?Model $customer = null): SubscriptionBuilder
+    {
+        return $this->subscribe($customer);
+    }
+
     /** Accrue the next cycle for all due items of a subscription (idempotent). */
     public function renew(Subscription $sub, ?CarbonImmutable $at = null): array
     {
@@ -137,6 +146,18 @@ final class Billify
     public function cancel(Subscription $sub, string $at = 'period_end', ?CarbonImmutable $when = null): Subscription
     {
         return app(SubscriptionManager::class)->cancel($sub, $at, $when);
+    }
+
+    /** Report metered usage for an item's dimension (idempotent on $key). */
+    public function recordUsage(SubscriptionItem $item, string $dimension, float $quantity, ?CarbonImmutable $occurredAt = null, ?string $key = null): UsageRecord
+    {
+        return app(UsageRollup::class)->record($item, $dimension, $quantity, $occurredAt, $key);
+    }
+
+    /** Roll up an item's usage window into in-arrears charges. */
+    public function rollupUsage(SubscriptionItem $item, Period $period): array
+    {
+        return app(UsageRollup::class)->rollup($item, $period);
     }
 
     public function driver(): InvoiceDriver

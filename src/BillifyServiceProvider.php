@@ -14,6 +14,7 @@ use Billify\Invoicing\Drivers\DatabaseInvoiceDriver;
 use Billify\Proration\Prorator;
 use Billify\Quoting\QuoteBuilder;
 use Billify\Subscriptions\SubscriptionBuilder;
+use Billify\Subscriptions\SubscriptionManager;
 use Billify\Support\SystemClock;
 use Billify\Tax\DatabaseTaxResolver;
 use Billify\Tax\EuVatResolver;
@@ -91,6 +92,12 @@ final class BillifyServiceProvider extends ServiceProvider
             tax: $app->make(TaxResolver::class),
             planner: $app->make(PeriodPlanner::class),
             currency: $app['config']['billify.currency'] ?? 'EUR',
+        ));
+
+        $this->app->singleton(SubscriptionManager::class, fn ($app) => new SubscriptionManager(
+            clock: $app->make(Clock::class),
+            prorator: $app->make(Prorator::class),
+            accruer: $app->make(ChargeAccruer::class),
         ));
 
         // Fresh builder per subscribe (stateful).

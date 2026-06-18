@@ -16,6 +16,9 @@ use Illuminate\Support\Facades\Facade;
  * @method static Payment recordPayment(Invoice $invoice, Money $amount, ?string $reference = null)
  * @method static \Billify\Quoting\QuoteBuilder quote()
  * @method static \Billify\Subscriptions\SubscriptionBuilder subscribe(?\Illuminate\Database\Eloquent\Model $customer = null)
+ * @method static array renew(\Billify\Models\Subscription $sub, ?\Carbon\CarbonImmutable $at = null)
+ * @method static \Billify\Models\SubscriptionItem changePlan(\Billify\Models\SubscriptionItem $item, \Billify\Models\Price $newPrice, string $apply = 'now', ?\Carbon\CarbonImmutable $at = null)
+ * @method static \Billify\Models\Subscription cancel(\Billify\Models\Subscription $sub, string $at = 'period_end', ?\Carbon\CarbonImmutable $when = null)
  * @method static InvoiceDriver driver()
  *
  * @see \Billify\Billify

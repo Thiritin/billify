@@ -12,9 +12,14 @@ use Billify\Models\Charge;
 use Billify\Models\Invoice;
 use Billify\Models\Payment;
 use Billify\Models\PaymentAllocation;
+use Billify\Models\Price;
+use Billify\Models\Subscription;
+use Billify\Models\SubscriptionItem;
 use Billify\Quoting\QuoteBuilder;
 use Billify\Subscriptions\SubscriptionBuilder;
+use Billify\Subscriptions\SubscriptionManager;
 use Brick\Money\Money;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -114,6 +119,24 @@ final class Billify
         $builder = app(SubscriptionBuilder::class);
 
         return $customer ? $builder->for($customer) : $builder;
+    }
+
+    /** Accrue the next cycle for all due items of a subscription (idempotent). */
+    public function renew(Subscription $sub, ?CarbonImmutable $at = null): array
+    {
+        return app(SubscriptionManager::class)->renew($sub, $at);
+    }
+
+    /** Switch an item's plan: 'now' (prorated) or 'period_end' (deferred). */
+    public function changePlan(SubscriptionItem $item, Price $newPrice, string $apply = 'now', ?CarbonImmutable $at = null): SubscriptionItem
+    {
+        return app(SubscriptionManager::class)->changePlan($item, $newPrice, $apply, $at);
+    }
+
+    /** Cancel a subscription: 'period_end' or 'now'. */
+    public function cancel(Subscription $sub, string $at = 'period_end', ?CarbonImmutable $when = null): Subscription
+    {
+        return app(SubscriptionManager::class)->cancel($sub, $at, $when);
     }
 
     public function driver(): InvoiceDriver

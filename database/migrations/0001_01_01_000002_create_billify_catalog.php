@@ -2,100 +2,115 @@
 
 declare(strict_types=1);
 
+use Billify\Enums\Aggregation;
+use Billify\Enums\BillingMode;
+use Billify\Enums\PricePurpose;
+use Billify\Enums\PricingModel;
+use Billify\Support\Pg;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
+use Tpetry\PostgresqlEnhanced\Schema\Blueprint;
+use Tpetry\PostgresqlEnhanced\Support\Facades\Schema;
 
 return new class extends Migration
 {
     public function up(): void
     {
-        DB::unprepared(<<<'SQL'
-        CREATE TABLE billify_billing_accounts (
-          id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-          parent_id     uuid REFERENCES billify_billing_accounts(id) ON DELETE RESTRICT,
-          owner_type    text NOT NULL,
-          owner_id      text NOT NULL,
-          currency      char(3) NOT NULL CHECK (currency ~ '^[A-Z]{3}$'),
-          tax_profile   jsonb NOT NULL DEFAULT '{}',
-          balance_minor bigint NOT NULL DEFAULT 0,
-          metadata      jsonb NOT NULL DEFAULT '{}',
-          created_at    timestamptz NOT NULL DEFAULT now(),
-          updated_at    timestamptz NOT NULL DEFAULT now()
-        );
-        CREATE INDEX billify_accounts_owner_idx  ON billify_billing_accounts (owner_type, owner_id);
-        CREATE INDEX billify_accounts_parent_idx ON billify_billing_accounts (parent_id);
-        CREATE TRIGGER billify_accounts_touch BEFORE UPDATE ON billify_billing_accounts
-          FOR EACH ROW EXECUTE FUNCTION billify_touch_updated_at();
+        Schema::create('billify_billing_accounts', function (Blueprint $table) {
+            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('parent_id')->nullable();
+            $table->string('owner_type');
+            $table->string('owner_id');
+            $table->char('currency', 3);
+            $table->jsonb('tax_profile')->default(DB::raw("'{}'::jsonb"));
+            $table->bigInteger('balance_minor')->default(0);
+            $table->jsonb('metadata')->default(DB::raw("'{}'::jsonb"));
+            $table->timestampsTz();
 
-        CREATE TABLE billify_products (
-          id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-          billable_type  text,
-          billable_id    text,
-          type           text NOT NULL,
-          slug           text NOT NULL UNIQUE,
-          name           text NOT NULL,
-          pricing_model  billify_pricing_model NOT NULL,
-          is_proratable  boolean NOT NULL DEFAULT true,
-          config         jsonb NOT NULL DEFAULT '{}',
-          active         boolean NOT NULL DEFAULT true,
-          metadata       jsonb NOT NULL DEFAULT '{}',
-          created_at     timestamptz NOT NULL DEFAULT now(),
-          updated_at     timestamptz NOT NULL DEFAULT now()
-        );
-        CREATE INDEX billify_products_billable_idx ON billify_products (billable_type, billable_id);
-        CREATE INDEX billify_products_type_idx     ON billify_products (type) WHERE active;
-        CREATE TRIGGER billify_products_touch BEFORE UPDATE ON billify_products
-          FOR EACH ROW EXECUTE FUNCTION billify_touch_updated_at();
+            $table->index(['owner_type', 'owner_id']);
+            $table->index('parent_id');
+        });
+        // Self-referencing FK added after the table (and its PK) exists.
+        Schema::table('billify_billing_accounts', function (Blueprint $table) {
+            $table->foreign('parent_id')->references('id')->on('billify_billing_accounts')->restrictOnDelete();
+        });
+        Pg::currencyCheck('billify_billing_accounts');
 
-        CREATE TABLE billify_prices (
-          id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-          product_id       uuid NOT NULL REFERENCES billify_products(id) ON DELETE CASCADE,
-          currency         char(3) NOT NULL CHECK (currency ~ '^[A-Z]{3}$'),
-          amount_minor     bigint NOT NULL DEFAULT 0 CHECK (amount_minor >= 0),  -- flat/base/setup amount (integer minor)
-          unit_rate        numeric(20,8) CHECK (unit_rate IS NULL OR unit_rate >= 0), -- per-unit/usage rate (major units, sub-cent)
-          purpose          billify_price_purpose NOT NULL DEFAULT 'recurring',
-          pricing_model    billify_pricing_model NOT NULL,
-          interval         billify_interval,
-          interval_count   integer CHECK (interval_count IS NULL OR interval_count > 0),
-          billing_mode     billify_billing_mode NOT NULL DEFAULT 'in_advance',
-          setup_fee_minor  bigint NOT NULL DEFAULT 0 CHECK (setup_fee_minor >= 0),
-          cap_minor        bigint CHECK (cap_minor IS NULL OR cap_minor >= 0),
-          min_charge_minor bigint NOT NULL DEFAULT 0,
-          tiers            jsonb NOT NULL DEFAULT '[]',
-          tax_inclusive    boolean NOT NULL DEFAULT false,
-          valid_from       timestamptz NOT NULL DEFAULT now(),
-          valid_to         timestamptz,
-          metadata         jsonb NOT NULL DEFAULT '{}',
-          created_at       timestamptz NOT NULL DEFAULT now(),
-          updated_at       timestamptz NOT NULL DEFAULT now(),
-          CHECK (interval IS NOT NULL OR purpose IN ('one_off','setup','register'))
-        );
-        CREATE INDEX billify_prices_lookup_idx ON billify_prices (product_id, currency, purpose) WHERE valid_to IS NULL;
-        CREATE INDEX billify_prices_tiers_gin  ON billify_prices USING gin (tiers);
-        CREATE TRIGGER billify_prices_touch BEFORE UPDATE ON billify_prices
-          FOR EACH ROW EXECUTE FUNCTION billify_touch_updated_at();
+        Schema::create('billify_products', function (Blueprint $table) {
+            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->string('billable_type')->nullable();
+            $table->string('billable_id')->nullable();
+            $table->string('type');
+            $table->string('slug')->unique();
+            $table->string('name');
+            $table->string('pricing_model');
+            $table->boolean('is_proratable')->default(true);
+            $table->jsonb('config')->default(DB::raw("'{}'::jsonb"));
+            $table->boolean('active')->default(true);
+            $table->jsonb('metadata')->default(DB::raw("'{}'::jsonb"));
+            $table->timestampsTz();
 
-        CREATE TABLE billify_meter_dimensions (
-          id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-          product_id     uuid NOT NULL REFERENCES billify_products(id) ON DELETE CASCADE,
-          key            text NOT NULL,
-          unit           text NOT NULL,
-          aggregation    billify_aggregation NOT NULL DEFAULT 'sum',
-          rate           numeric(20,8) NOT NULL CHECK (rate >= 0),  -- per-unit rate (major units, sub-cent capable)
-          currency       char(3) NOT NULL CHECK (currency ~ '^[A-Z]{3}$'),
-          included_qty   numeric(20,6) NOT NULL DEFAULT 0,
-          cap_minor      bigint,  -- optional money cap (integer minor)
-          tiers          jsonb NOT NULL DEFAULT '[]',
-          created_at     timestamptz NOT NULL DEFAULT now(),
-          UNIQUE (product_id, key)
-        );
-        SQL);
+            $table->index(['billable_type', 'billable_id']);
+            $table->index('type')->where('active');
+        });
+        Pg::enumCheck('billify_products', 'pricing_model', PricingModel::class);
+
+        Schema::create('billify_prices', function (Blueprint $table) {
+            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->foreignUuid('product_id')->constrained('billify_products')->cascadeOnDelete();
+            $table->char('currency', 3);
+            $table->bigInteger('amount_minor')->default(0);          // flat/base amount (integer minor)
+            $table->decimal('unit_rate', 20, 8)->nullable();         // per-unit/usage rate (major units, sub-cent)
+            $table->string('purpose')->default(PricePurpose::Recurring->value);
+            $table->string('pricing_model');
+            $table->string('interval')->nullable();
+            $table->integer('interval_count')->nullable();
+            $table->string('billing_mode')->default(BillingMode::InAdvance->value);
+            $table->bigInteger('setup_fee_minor')->default(0);
+            $table->bigInteger('cap_minor')->nullable();             // hourly monthly cap
+            $table->bigInteger('min_charge_minor')->default(0);
+            $table->jsonb('tiers')->default(DB::raw("'[]'::jsonb"));
+            $table->boolean('tax_inclusive')->default(false);
+            $table->timestampTz('valid_from')->useCurrent();
+            $table->timestampTz('valid_to')->nullable();             // null = current; old rows kept (grandfathering)
+            $table->jsonb('metadata')->default(DB::raw("'{}'::jsonb"));
+            $table->timestampsTz();
+
+            $table->index(['product_id', 'currency', 'purpose'])->where('valid_to IS NULL');
+            $table->index('tiers')->algorithm('gin');
+        });
+        Pg::currencyCheck('billify_prices');
+        Pg::enumCheck('billify_prices', 'purpose', PricePurpose::class);
+        Pg::enumCheck('billify_prices', 'pricing_model', PricingModel::class);
+        Pg::enumCheck('billify_prices', 'billing_mode', BillingMode::class);
+        Pg::check('billify_prices', 'billify_prices_amount_nonneg', 'amount_minor >= 0');
+        Pg::check('billify_prices', 'billify_prices_rate_nonneg', 'unit_rate IS NULL OR unit_rate >= 0');
+
+        Schema::create('billify_meter_dimensions', function (Blueprint $table) {
+            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->foreignUuid('product_id')->constrained('billify_products')->cascadeOnDelete();
+            $table->string('key');
+            $table->string('unit');
+            $table->string('aggregation')->default(Aggregation::Sum->value);
+            $table->decimal('rate', 20, 8);                          // per-unit rate (major units, sub-cent capable)
+            $table->char('currency', 3);
+            $table->decimal('included_qty', 20, 6)->default(0);      // free allowance per cycle
+            $table->bigInteger('cap_minor')->nullable();
+            $table->jsonb('tiers')->default(DB::raw("'[]'::jsonb"));
+            $table->timestampTz('created_at')->useCurrent();
+
+            $table->unique(['product_id', 'key']);
+        });
+        Pg::currencyCheck('billify_meter_dimensions');
+        Pg::enumCheck('billify_meter_dimensions', 'aggregation', Aggregation::class);
+        Pg::check('billify_meter_dimensions', 'billify_md_rate_nonneg', 'rate >= 0');
     }
 
     public function down(): void
     {
-        DB::unprepared(<<<'SQL'
-        DROP TABLE IF EXISTS billify_meter_dimensions, billify_prices, billify_products, billify_billing_accounts CASCADE;
-        SQL);
+        Schema::dropIfExists('billify_meter_dimensions');
+        Schema::dropIfExists('billify_prices');
+        Schema::dropIfExists('billify_products');
+        Schema::dropIfExists('billify_billing_accounts');
     }
 };

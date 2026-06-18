@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Billify\Proration;
 
 use Billify\Support\Period;
-use Brick\Money\Money;
 use Brick\Math\RoundingMode;
+use Brick\Money\Money;
 use Carbon\CarbonImmutable;
 
 /**

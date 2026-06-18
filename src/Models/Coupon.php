@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Billify\Models;
 
 use Billify\Enums\DiscountType;
-use Brick\Money\Money;
 use Brick\Math\RoundingMode;
+use Brick\Money\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 

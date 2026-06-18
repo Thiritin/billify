@@ -7,7 +7,6 @@ namespace Billify;
 use Billify\Contracts\InvoiceDriver;
 use Billify\Enums\InvoiceState;
 use Billify\Invoicing\InvoiceDraft;
-use Billify\Invoicing\IssuedInvoice;
 use Billify\Models\BillingAccount;
 use Billify\Models\Charge;
 use Billify\Models\Invoice;

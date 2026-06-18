@@ -2,107 +2,122 @@
 
 declare(strict_types=1);
 
+use Billify\Enums\CreditState;
+use Billify\Enums\InvoiceState;
+use Billify\Enums\LineKind;
+use Billify\Support\Pg;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
+use Tpetry\PostgresqlEnhanced\Schema\Blueprint;
+use Tpetry\PostgresqlEnhanced\Support\Facades\Schema;
 
 return new class extends Migration
 {
     public function up(): void
     {
-        DB::unprepared(<<<'SQL'
-        CREATE TABLE billify_invoices (
-          id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-          account_id     uuid NOT NULL REFERENCES billify_billing_accounts(id) ON DELETE RESTRICT,
-          customer_type  text NOT NULL,
-          customer_id    text NOT NULL,
-          number         text,
-          driver         text NOT NULL DEFAULT 'database',
-          external_id    text,
-          external_url   text,
-          state          billify_invoice_state NOT NULL DEFAULT 'draft',
-          currency       char(3) NOT NULL CHECK (currency ~ '^[A-Z]{3}$'),
-          subtotal_minor bigint NOT NULL DEFAULT 0,
-          tax_minor      bigint NOT NULL DEFAULT 0,
-          total_minor    bigint NOT NULL DEFAULT 0,
-          paid_minor     bigint NOT NULL DEFAULT 0,
-          issued_at      timestamptz,
-          due_at         timestamptz,
-          paid_at        timestamptz,
-          idempotency_key text,
-          metadata       jsonb NOT NULL DEFAULT '{}',
-          version        integer NOT NULL DEFAULT 0,
-          created_at     timestamptz NOT NULL DEFAULT now(),
-          updated_at     timestamptz NOT NULL DEFAULT now()
-        );
-        CREATE UNIQUE INDEX billify_invoices_number_uq ON billify_invoices (number) WHERE number IS NOT NULL;
-        CREATE UNIQUE INDEX billify_invoices_batch_uq  ON billify_invoices (idempotency_key) WHERE idempotency_key IS NOT NULL;
-        CREATE INDEX billify_invoices_account_idx ON billify_invoices (account_id, state);
-        CREATE TRIGGER billify_invoices_touch BEFORE UPDATE ON billify_invoices
-          FOR EACH ROW EXECUTE FUNCTION billify_touch_updated_at();
+        Schema::create('billify_invoices', function (Blueprint $table) {
+            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->foreignUuid('account_id')->constrained('billify_billing_accounts')->restrictOnDelete();
+            $table->string('customer_type');
+            $table->string('customer_id');
+            $table->string('number')->nullable();
+            $table->string('driver')->default('database');
+            $table->string('external_id')->nullable();
+            $table->string('external_url')->nullable();
+            $table->string('state')->default(InvoiceState::Draft->value);
+            $table->char('currency', 3);
+            $table->bigInteger('subtotal_minor')->default(0);
+            $table->bigInteger('tax_minor')->default(0);
+            $table->bigInteger('total_minor')->default(0);
+            $table->bigInteger('paid_minor')->default(0);
+            $table->timestampTz('issued_at')->nullable();
+            $table->timestampTz('due_at')->nullable();
+            $table->timestampTz('paid_at')->nullable();
+            $table->string('idempotency_key')->nullable();   // batch (charge set) key for safe retry
+            $table->jsonb('metadata')->default(DB::raw("'{}'::jsonb"));
+            $table->integer('version')->default(0);
+            $table->timestampsTz();
 
-        CREATE TABLE billify_invoice_lines (
-          id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-          invoice_id   uuid NOT NULL REFERENCES billify_invoices(id) ON DELETE CASCADE,
-          charge_id    uuid REFERENCES billify_charges(id) ON DELETE SET NULL,
-          kind         billify_line_kind NOT NULL,
-          description  text NOT NULL,
-          quantity     numeric(20,6) NOT NULL DEFAULT 1,
-          unit_minor   bigint,                  -- integer unit price (fixed/per-unit lines)
-          unit_rate    numeric(20,8),           -- sub-cent unit rate (usage lines), for display
-          amount_minor bigint NOT NULL,         -- rounded net amount (integer minor)
-          tax_rate     numeric(6,4) NOT NULL DEFAULT 0,
-          tax_minor    bigint NOT NULL DEFAULT 0,
-          tax_label    text,
-          currency     char(3) NOT NULL CHECK (currency ~ '^[A-Z]{3}$'),
-          covers       tstzrange,
-          dimension_id uuid,
-          sort         integer NOT NULL DEFAULT 0,
-          metadata     jsonb NOT NULL DEFAULT '{}'
-        );
-        CREATE INDEX billify_lines_invoice_idx ON billify_invoice_lines (invoice_id, sort);
+            $table->uniqueIndex('number')->where('number IS NOT NULL');
+            $table->uniqueIndex('idempotency_key')->where('idempotency_key IS NOT NULL');
+            $table->index(['account_id', 'state']);
+        });
+        Pg::currencyCheck('billify_invoices');
+        Pg::enumCheck('billify_invoices', 'state', InvoiceState::class);
 
-        CREATE TABLE billify_credit_notes (
-          id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-          invoice_id   uuid NOT NULL REFERENCES billify_invoices(id) ON DELETE RESTRICT,
-          number       text,
-          driver       text NOT NULL DEFAULT 'database',
-          external_id  text,
-          state        billify_credit_state NOT NULL DEFAULT 'draft',
-          reason       text,
-          amount_minor bigint NOT NULL,
-          tax_minor    bigint NOT NULL DEFAULT 0,
-          currency     char(3) NOT NULL CHECK (currency ~ '^[A-Z]{3}$'),
-          issued_at    timestamptz,
-          metadata     jsonb NOT NULL DEFAULT '{}',
-          created_at   timestamptz NOT NULL DEFAULT now()
-        );
-        CREATE UNIQUE INDEX billify_credit_number_uq ON billify_credit_notes (number) WHERE number IS NOT NULL;
+        Schema::create('billify_invoice_lines', function (Blueprint $table) {
+            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->foreignUuid('invoice_id')->constrained('billify_invoices')->cascadeOnDelete();
+            $table->foreignUuid('charge_id')->nullable()->constrained('billify_charges')->nullOnDelete();
+            $table->string('kind');
+            $table->string('description');
+            $table->decimal('quantity', 20, 6)->default(1);
+            $table->bigInteger('unit_minor')->nullable();
+            $table->decimal('unit_rate', 20, 8)->nullable();
+            $table->bigInteger('amount_minor');
+            $table->decimal('tax_rate', 6, 4)->default(0);
+            $table->bigInteger('tax_minor')->default(0);
+            $table->string('tax_label')->nullable();
+            $table->char('currency', 3);
+            $table->timestampTzRange('covers')->nullable();
+            $table->uuid('dimension_id')->nullable();
+            $table->integer('sort')->default(0);
+            $table->jsonb('metadata')->default(DB::raw("'{}'::jsonb"));
 
-        CREATE TABLE billify_payments (
-          id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-          account_id   uuid NOT NULL REFERENCES billify_billing_accounts(id) ON DELETE RESTRICT,
-          amount_minor bigint NOT NULL CHECK (amount_minor > 0),
-          currency     char(3) NOT NULL CHECK (currency ~ '^[A-Z]{3}$'),
-          reference    text,
-          received_at  timestamptz NOT NULL DEFAULT now(),
-          metadata     jsonb NOT NULL DEFAULT '{}',
-          UNIQUE (reference)
-        );
-        CREATE TABLE billify_payment_allocations (
-          id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-          payment_id   uuid NOT NULL REFERENCES billify_payments(id) ON DELETE CASCADE,
-          invoice_id   uuid NOT NULL REFERENCES billify_invoices(id) ON DELETE RESTRICT,
-          amount_minor bigint NOT NULL CHECK (amount_minor > 0),
-          UNIQUE (payment_id, invoice_id)
-        );
-        SQL);
+            $table->index(['invoice_id', 'sort']);
+        });
+        Pg::currencyCheck('billify_invoice_lines');
+        Pg::enumCheck('billify_invoice_lines', 'kind', LineKind::class);
+
+        Schema::create('billify_credit_notes', function (Blueprint $table) {
+            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->foreignUuid('invoice_id')->constrained('billify_invoices')->restrictOnDelete();
+            $table->string('number')->nullable();
+            $table->string('driver')->default('database');
+            $table->string('external_id')->nullable();
+            $table->string('state')->default(CreditState::Draft->value);
+            $table->string('reason')->nullable();
+            $table->bigInteger('amount_minor');
+            $table->bigInteger('tax_minor')->default(0);
+            $table->char('currency', 3);
+            $table->timestampTz('issued_at')->nullable();
+            $table->jsonb('metadata')->default(DB::raw("'{}'::jsonb"));
+            $table->timestampTz('created_at')->useCurrent();
+
+            $table->uniqueIndex('number')->where('number IS NOT NULL');
+        });
+        Pg::currencyCheck('billify_credit_notes');
+        Pg::enumCheck('billify_credit_notes', 'state', CreditState::class);
+
+        Schema::create('billify_payments', function (Blueprint $table) {
+            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->foreignUuid('account_id')->constrained('billify_billing_accounts')->restrictOnDelete();
+            $table->bigInteger('amount_minor');
+            $table->char('currency', 3);
+            $table->string('reference')->nullable()->unique();
+            $table->timestampTz('received_at')->useCurrent();
+            $table->jsonb('metadata')->default(DB::raw("'{}'::jsonb"));
+        });
+        Pg::currencyCheck('billify_payments');
+        Pg::check('billify_payments', 'billify_payments_amount_pos', 'amount_minor > 0');
+
+        Schema::create('billify_payment_allocations', function (Blueprint $table) {
+            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->foreignUuid('payment_id')->constrained('billify_payments')->cascadeOnDelete();
+            $table->foreignUuid('invoice_id')->constrained('billify_invoices')->restrictOnDelete();
+            $table->bigInteger('amount_minor');
+
+            $table->unique(['payment_id', 'invoice_id']);
+        });
+        Pg::check('billify_payment_allocations', 'billify_alloc_amount_pos', 'amount_minor > 0');
     }
 
     public function down(): void
     {
-        DB::unprepared(<<<'SQL'
-        DROP TABLE IF EXISTS billify_payment_allocations, billify_payments, billify_credit_notes,
-            billify_invoice_lines, billify_invoices CASCADE;
-        SQL);
+        Schema::dropIfExists('billify_payment_allocations');
+        Schema::dropIfExists('billify_payments');
+        Schema::dropIfExists('billify_credit_notes');
+        Schema::dropIfExists('billify_invoice_lines');
+        Schema::dropIfExists('billify_invoices');
     }
 };

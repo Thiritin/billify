@@ -5,8 +5,10 @@ Postgres-only by design. Leans on Postgres features that make billing safer:
 - **`tstzrange` + `btree_gist` EXCLUDE constraints** — the DB itself refuses to
   bill the same service window twice for a resource. Idempotency enforced in
   storage, not just code.
-- **Native enum types** — states/intervals/modes are real types, not loose
-  varchars.
+- **String + CHECK for enums** (not native `CREATE TYPE`) — states/modes are
+  `varchar` columns guarded by a CHECK listing the PHP enum's values. Deliberate:
+  adding a value is an enum edit + a swapped CHECK, vs native enum `ALTER TYPE`
+  (can't run in a transaction, values can't be removed). Same safety, easy alters.
 - **Partial indexes** — the invoicing run scans only `WHERE state = 'pending'`.
 - **`jsonb` (+ GIN)** — tier tables, meter config, metadata without side tables.
 - **`numeric`** — fractional usage (hours, GB) and **sub-cent unit rates**
@@ -38,44 +40,35 @@ Rates keep full precision; only the billable amount is rounded.
 
 ## 0. Extensions, enums, helpers
 
+> **Implementation note.** The DDL in this doc is the *logical* schema. The real
+> migrations use Laravel's Blueprint + `tpetry/laravel-postgresql-enhanced`
+> (for `tstzrange`, partial/GIN/expression indexes, identity) with thin raw
+> `DB::statement` only for the GiST `EXCLUDE` constraint and the immutability
+> triggers. Enum-typed columns shown below as `billify_*_state` etc. are actually
+> `varchar` + a `CHECK` listing the PHP enum's values (`Billify\Support\Pg::enumCheck`).
+
 ```sql
 CREATE EXTENSION IF NOT EXISTS pgcrypto;    -- gen_random_uuid()
 CREATE EXTENSION IF NOT EXISTS btree_gist;  -- EXCLUDE: scalar = + range &&
-
--- Enum types -------------------------------------------------------------
-CREATE TYPE billify_interval         AS ENUM ('day','week','month','year');
-CREATE TYPE billify_billing_mode     AS ENUM ('in_advance','in_arrears');
-CREATE TYPE billify_pricing_model    AS ENUM ('fixed','per_unit','tiered','volume','metered','hourly','one_off');
-CREATE TYPE billify_price_purpose    AS ENUM ('recurring','setup','register','renew','transfer','addon','option');
-CREATE TYPE billify_anchor_mode      AS ENUM ('signup','fixed_day','fixed_dow');
-CREATE TYPE billify_first_period     AS ENUM ('prorate_only','prorate_plus_full','full_period','free_until_anchor');
-CREATE TYPE billify_sub_state        AS ENUM ('incomplete','trialing','active','past_due','paused','canceled','expired');
-CREATE TYPE billify_item_state       AS ENUM ('pending','active','paused','canceled');
-CREATE TYPE billify_charge_state     AS ENUM ('pending','invoiced','settled','void');
-CREATE TYPE billify_invoice_state    AS ENUM ('draft','open','partially_paid','paid','void','uncollectible');
-CREATE TYPE billify_option_type      AS ENUM ('quantity','choice','toggle');
-CREATE TYPE billify_aggregation      AS ENUM ('sum','max','last');
-CREATE TYPE billify_discount_type    AS ENUM ('percent','fixed');
-CREATE TYPE billify_commitment_state AS ENUM ('active','expired','terminated');
-CREATE TYPE billify_credit_state     AS ENUM ('draft','issued','applied','void');
-CREATE TYPE billify_line_kind        AS ENUM ('recurring','prorated','full_period','usage','setup','one_off','addon','option','discount','credit');
-
--- Reusable column check: ISO-4217-ish ------------------------------------
--- (applied per-table as: CHECK (currency ~ '^[A-Z]{3}$'))
-
--- updated_at trigger -----------------------------------------------------
-CREATE OR REPLACE FUNCTION billify_touch_updated_at() RETURNS trigger AS $$
-BEGIN NEW.updated_at = now(); RETURN NEW; END;
-$$ LANGUAGE plpgsql;
-
--- Immutability guard: block UPDATE/DELETE once a row is "locked" ----------
-CREATE OR REPLACE FUNCTION billify_block_when_locked() RETURNS trigger AS $$
-BEGIN
-  RAISE EXCEPTION 'billify: % % is immutable in state %',
-    TG_TABLE_NAME, OLD.id, OLD.state USING ERRCODE = 'integrity_constraint_violation';
-END;
-$$ LANGUAGE plpgsql;
 ```
+
+**Enums = string + CHECK** (not native `CREATE TYPE`). Example for charge state:
+
+```sql
+state varchar NOT NULL DEFAULT 'pending'
+  CONSTRAINT billify_charges_state_check
+  CHECK (state IN ('pending','invoiced','settled','void'))
+```
+
+Why not native enum types: `ALTER TYPE ... ADD VALUE` cannot run inside a
+transaction (breaks Laravel migrations) and values cannot be removed/reordered
+without recreating the type and rewriting every dependent column. A CHECK is
+dropped/added trivially. The PHP backed-enum cast gives type safety in code; the
+CHECK gives integrity in the DB. Allowed-value lists are generated from the PHP
+enums so the two never drift.
+
+Timestamps (`created_at`/`updated_at`) are managed by Eloquent — no DB trigger.
+Immutability of issued invoices/lines is enforced by triggers (see §8).
 
 ---
 

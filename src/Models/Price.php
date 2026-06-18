@@ -11,6 +11,7 @@ use Billify\Enums\PricePurpose;
 use Billify\Enums\PricingModel;
 use Billify\Support\MoneyMath;
 use Billify\Support\RecurrenceRule;
+use Brick\Math\RoundingMode;
 use Brick\Money\Money;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -19,7 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $currency
  * @property int $amount_minor
  * @property Money $amount
- * @property ?string $unit_rate  high-precision per-unit rate (major units, sub-cent)
+ * @property ?string $unit_rate high-precision per-unit rate (major units, sub-cent)
  * @property PricePurpose $purpose
  * @property PricingModel $pricing_model
  * @property ?Interval $interval
@@ -95,7 +96,7 @@ class Price extends BillifyModel
     public function amountFor(float|int|string $quantity): Money
     {
         if ($this->unit_rate === null) {
-            return $this->amount->multipliedBy((string) $quantity, \Brick\Math\RoundingMode::HALF_UP);
+            return $this->amount->multipliedBy((string) $quantity, RoundingMode::HALF_UP);
         }
 
         return MoneyMath::fromRate($quantity, $this->unit_rate, $this->currency);

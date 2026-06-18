@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 use Billify\Enums\BillingMode;
 use Billify\Enums\FirstPeriodPolicy;
+use Billify\Invoicing\Drivers\DatabaseInvoiceDriver;
+use Billify\Tax\EuVatResolver;
+use Billify\Tax\FlatRateTaxResolver;
+use Billify\Tax\NullTaxResolver;
 
 return [
 
@@ -42,7 +46,7 @@ return [
     */
     'anchor' => [
         'mode' => env('BILLIFY_ANCHOR_MODE', 'signup'),     // signup | fixed_day | fixed_dow
-        'day'  => env('BILLIFY_ANCHOR_DAY', 1),
+        'day' => env('BILLIFY_ANCHOR_DAY', 1),
         'first_period' => env('BILLIFY_FIRST_PERIOD', FirstPeriodPolicy::ProrateOnly->value),
         'default_billing_mode' => BillingMode::InAdvance->value,
     ],
@@ -57,9 +61,9 @@ return [
     'tax' => [
         'driver' => env('BILLIFY_TAX_DRIVER', 'eu_vat'), // eu_vat | flat | null
         'drivers' => [
-            'eu_vat' => \Billify\Tax\EuVatResolver::class,
-            'flat'   => \Billify\Tax\FlatRateTaxResolver::class,
-            'null'   => \Billify\Tax\NullTaxResolver::class,
+            'eu_vat' => EuVatResolver::class,
+            'flat' => FlatRateTaxResolver::class,
+            'null' => NullTaxResolver::class,
         ],
         'flat_rate' => env('BILLIFY_TAX_FLAT_RATE', 0.19),
     ],
@@ -67,7 +71,7 @@ return [
     'invoice' => [
         'driver' => env('BILLIFY_INVOICE_DRIVER', 'database'),
         'drivers' => [
-            'database' => \Billify\Invoicing\Drivers\DatabaseInvoiceDriver::class,
+            'database' => DatabaseInvoiceDriver::class,
             // 'lexoffice' => \App\Billing\LexofficeInvoiceDriver::class,
         ],
         // Mirror canonical record to DB even when a remote driver is primary.
@@ -90,7 +94,7 @@ return [
     | Morph key type for host references and Billify PKs.
     */
     'schema' => [
-        'prefix'   => 'billify_',
+        'prefix' => 'billify_',
         'morph_key' => env('BILLIFY_MORPH_KEY', 'uuid'), // uuid | bigint
     ],
 ];

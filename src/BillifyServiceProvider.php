@@ -7,6 +7,7 @@ namespace Billify;
 use Billify\Contracts\Clock;
 use Billify\Contracts\InvoiceDriver;
 use Billify\Contracts\TaxResolver;
+use Billify\Invoicing\Drivers\DatabaseInvoiceDriver;
 use Billify\Proration\Prorator;
 use Billify\Support\SystemClock;
 use Billify\Tax\EuVatResolver;
@@ -39,7 +40,7 @@ final class BillifyServiceProvider extends ServiceProvider
         $this->app->singleton(InvoiceDriver::class, function ($app) {
             $cfg = $app['config']['billify.invoice'];
             $key = $cfg['driver'] ?? 'database';
-            $class = $cfg['drivers'][$key] ?? \Billify\Invoicing\Drivers\DatabaseInvoiceDriver::class;
+            $class = $cfg['drivers'][$key] ?? DatabaseInvoiceDriver::class;
 
             return $app->make($class);
         });

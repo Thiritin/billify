@@ -6,12 +6,13 @@
     "type": "library",
     "require": {
         "php": "^8.5",
+        "brick/math": "^0.12",
+        "brick/money": "^0.10",
         "illuminate/contracts": "^12.0",
         "illuminate/database": "^12.0",
         "illuminate/support": "^12.0",
-        "brick/money": "^0.10",
-        "brick/math": "^0.12",
-        "nesbot/carbon": "^3.0"
+        "nesbot/carbon": "^3.0",
+        "tpetry/laravel-postgresql-enhanced": "^3.7"
     },
     "require-dev": {
         "orchestra/testbench": "^10.0",
@@ -45,6 +46,13 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true
         }
+    },
+    "scripts": {
+        "test": "pest",
+        "test:unit": "pest --testsuite Unit",
+        "test:feature": "pest --testsuite Feature",
+        "analyse": "phpstan analyse",
+        "format": "pint"
     },
     "minimum-stability": "stable",
     "prefer-stable": true

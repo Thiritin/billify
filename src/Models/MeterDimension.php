@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * @property string $key
  * @property Aggregation $aggregation
- * @property string $rate   high-precision per-unit rate (major units)
+ * @property string $rate high-precision per-unit rate (major units)
  * @property float $included_qty
  */
 class MeterDimension extends BillifyModel

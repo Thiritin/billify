@@ -98,9 +98,11 @@ vendor/bin/pint      # format
 
 ## Roadmap
 
-- [x] Schema, models, casts, enums
+- [x] Schema (hybrid Laravel Blueprint + `tpetry/laravel-postgresql-enhanced`), models, casts, enums
 - [x] Tax drivers (EU VAT, flat, null) + database invoice driver
 - [x] Proration engine + charge/invoice/payment flow
+- [x] Test suite — 34 tests green (unit calc core + feature against real Postgres:
+      migrations, GiST no-double-bill guard, immutability trigger, invoicing flow)
 - [ ] Fluent `subscribe()` / `changePlan()` / `cancel()` managers
 - [ ] `quote()` / `checkout()` builders (JSON for frontends)
 - [ ] Usage rollup + anchoring/first-period planner

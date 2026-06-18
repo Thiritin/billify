@@ -30,7 +30,7 @@ return new class extends Migration
 
         -- Lines of a non-draft invoice are frozen entirely.
         CREATE OR REPLACE FUNCTION billify_line_immutable() RETURNS trigger AS $$
-        DECLARE st billify_invoice_state;
+        DECLARE st text;
         BEGIN
           SELECT state INTO st FROM billify_invoices WHERE id = COALESCE(NEW.invoice_id, OLD.invoice_id);
           IF st IS NOT NULL AND st <> 'draft' THEN

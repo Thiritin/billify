@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Billify\Tax;
 
 use Billify\Contracts\TaxResolver;
-use Brick\Money\Money;
 use Brick\Math\RoundingMode;
+use Brick\Money\Money;
 
 final class FlatRateTaxResolver implements TaxResolver
 {

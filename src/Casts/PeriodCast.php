@@ -1,0 +1,39 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Billify\Casts;
+
+use Billify\Support\Period;
+use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
+use Illuminate\Database\Eloquent\Model;
+
+/**
+ * Casts a Postgres tstzrange column to/from a Period value object.
+ *
+ * @implements CastsAttributes<Period|null, Period|null>
+ */
+final class PeriodCast implements CastsAttributes
+{
+    public function get(Model $model, string $key, mixed $value, array $attributes): ?Period
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return Period::fromRange((string) $value);
+    }
+
+    public function set(Model $model, string $key, mixed $value, array $attributes): array
+    {
+        if ($value === null) {
+            return [$key => null];
+        }
+
+        if (! $value instanceof Period) {
+            throw new \InvalidArgumentException("{$key} must be a Billify\\Support\\Period instance.");
+        }
+
+        return [$key => $value->toRange()];
+    }
+}

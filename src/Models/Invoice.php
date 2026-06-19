@@ -16,6 +16,8 @@ use Meteric\Enums\InvoiceState;
  * @property string $account_id
  * @property ?string $number
  * @property string $driver
+ * @property ?string $external_id
+ * @property ?string $external_url
  * @property InvoiceState $state
  * @property string $currency
  * @property int $subtotal_minor

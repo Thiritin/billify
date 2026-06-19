@@ -80,4 +80,10 @@ final class Period
     {
         return [$this->start->toIso8601String(), $this->end->toIso8601String()];
     }
+
+    /** Human label like "2026-06-01 to 2026-07-01". */
+    public function label(string $format = 'Y-m-d'): string
+    {
+        return $this->start->format($format).' to '.$this->end->format($format);
+    }
 }

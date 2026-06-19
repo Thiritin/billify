@@ -379,3 +379,21 @@ class ResumeOnPayment
 `resume()` starts a fresh cycle from the resume date, so the customer is not
 back-billed for the suspended gap. The full event list is in
 [Events and hooks](/usage/extending).
+
+## What the invoice looks like
+
+A first invoice for a Pro plan with a setup fee, a storage addon, and a domain
+registration renders to these lines. Each line carries a `title`, a `unit`, the
+`covers` period, and the amount.
+
+| Item | Period | Qty | Unit | Amount |
+|------|--------|-----|------|--------|
+| Webhosting Pro - alice.example | 2026-06-01 to 2026-07-01 | 1 | month | €9.99 |
+| Webhosting Pro - alice.example | one-time | 1 | | €5.00 |
+| Extra storage | 2026-06-01 to 2026-07-01 | 1 | month | €2.00 |
+| example.com | registration | 1 | year | €12.00 |
+| **Total (net)** | | | | **€28.99** |
+
+`line->title` is the name, `line->description` holds the detail (the period, on
+its own line), `line->unit` is the quantity unit, and `line->coversLabel()`
+formats the period. Tax is added per line by the [tax resolver](/usage/tax).

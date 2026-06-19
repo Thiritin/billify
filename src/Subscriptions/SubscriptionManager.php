@@ -265,6 +265,7 @@ final class SubscriptionManager
             'kind' => $kind,
             'billing_mode' => $item->billingMode(),
             'state' => ChargeState::Pending,
+            'title' => $item->lineTitle(),
             'description' => $desc,
             'quantity' => $item->quantity,
             'unit_minor' => $amount->getMinorAmount()->toInt(),

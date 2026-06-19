@@ -175,3 +175,16 @@ $invoice = Meteric::invoicePending($account);
 A changed hourly rate takes effect going forward, usage before the change bills at
 the old rate, usage after at the new one. Roll up the old window before switching
 the rate for a clean cutover. See [Plan changes](/usage/plan-changes#hourly-and-metered-plans).
+
+## What the invoice looks like
+
+A monthly invoice for a 16-slot server with metered runtime.
+
+| Item | Detail | Qty | Unit | Amount |
+|------|--------|-----|------|--------|
+| Gameserver - mc-eu-04.example | 2026-06-01 to 2026-07-01 | 16 | slots | €40.00 |
+| Gameserver - mc-eu-04.example | Runtime: 540 hours | 540 | hours | €5.40 |
+| **Total (net)** | | | | **€45.40** |
+
+The slot line is priced through the volume tiers; the runtime line is the rolled
+up hourly usage for the cycle.

@@ -96,7 +96,8 @@ final class UsageRollup
                     'kind' => LineKind::Usage,
                     'billing_mode' => BillingMode::InArrears,
                     'state' => ChargeState::Pending,
-                    'description' => $item->lineTitle(),
+                    'title' => $item->lineTitle(),
+                    'description' => sprintf("%s: %s %s\n%s", ucfirst($dimension->key), $this->trim($used), $dimension->unit, $period->label()),
                     'quantity' => $dimension->billedUnits($used),  // blocks when block_size set, else overage units
                     'unit' => $dimension->unit,                    // GB, hours, ...
                     'unit_rate' => $dimension->rate,
@@ -127,6 +128,12 @@ final class UsageRollup
             ->where('product_id', $item->product_id)
             ->where('key', $key)
             ->firstOrFail();
+    }
+
+    /** Format a usage quantity without trailing zeros: 1500.000000 → "1500". */
+    private function trim(float $value): string
+    {
+        return rtrim(rtrim(number_format($value, 6, '.', ''), '0'), '.');
     }
 
     /** @param list<float|string> $values */

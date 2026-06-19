@@ -146,6 +146,7 @@ final class ItemManager
             'kind' => $kind,
             'billing_mode' => $item->billingMode(),
             'state' => ChargeState::Pending,
+            'title' => $item->lineTitle(),
             'description' => $desc,
             'quantity' => 1,
             'unit_minor' => $amount->getMinorAmount()->toInt(),

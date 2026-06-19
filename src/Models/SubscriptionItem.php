@@ -95,10 +95,12 @@ class SubscriptionItem extends MetericModel
         return $this->hasMany(UsageRecord::class, 'item_id');
     }
 
-    /** Invoice line title for this item: the set label (e.g. a hostname), else the product name. */
+    /** Invoice line title: "Product - label" (e.g. "VPS XL - vps12345.example"), or just the product name. */
     public function lineTitle(): string
     {
-        return $this->label ?? $this->product->name;
+        return $this->label !== null
+            ? $this->product->name.' - '.$this->label
+            : $this->product->name;
     }
 
     /** Effective billing mode (item override → price → in-advance default). */

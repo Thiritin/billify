@@ -7,6 +7,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Meteric\Enums\SubscriptionState;
+use Meteric\Events\CreditNoteIssued;
 use Meteric\Events\InvoiceOverdue;
 use Meteric\Events\InvoicePaid;
 use Meteric\Events\InvoicePartiallyPaid;
@@ -84,6 +85,21 @@ it('marks overdue invoices past_due and fires the events', function () {
         ->and($sub->fresh()->state)->toBe(SubscriptionState::PastDue);
     Event::assertDispatched(InvoiceOverdue::class);
     Event::assertDispatched(SubscriptionPastDue::class);
+});
+
+it('issues a credit note against an invoice (the refund record)', function () {
+    Event::fake([CreditNoteIssued::class]);
+    $acc = eventsAccount();
+    Meteric::subscribe()->account($acc)->at(CarbonImmutable::parse('2026-06-01Z'))->add(eventsPlan(1000), 1)->create();
+    $invoice = Meteric::invoicePending($acc);
+    Meteric::recordPayment($invoice, Money::ofMinor($invoice->total_minor, 'EUR'), 'pi_cn');
+
+    $note = Meteric::creditNote($invoice, Money::ofMinor($invoice->total_minor, 'EUR'), 'customer refund');
+
+    expect($note->amount_minor)->toBe($invoice->total_minor)
+        ->and($note->invoice_id)->toBe($invoice->id)
+        ->and($invoice->fresh()->creditNotes)->toHaveCount(1);
+    Event::assertDispatched(CreditNoteIssued::class);
 });
 
 it('pause stops billing and resume restarts it (the suspension hook)', function () {

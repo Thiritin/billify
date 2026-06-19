@@ -27,6 +27,7 @@ use Meteric\Models\Payment;
  * @method static \Meteric\Models\Subscription resume(\Meteric\Models\Subscription $sub, ?\Carbon\CarbonImmutable $at = null)
  * @method static int markOverdue(?\Carbon\CarbonImmutable $at = null)
  * @method static Invoice voidInvoice(Invoice $invoice)
+ * @method static \Meteric\Models\CreditNote creditNote(Invoice $invoice, Money $amount, ?string $reason = null)
  * @method static \Meteric\Models\Addon addAddon(\Meteric\Models\SubscriptionItem $item, \Meteric\Models\Price $price, ?string $group = null, float $qty = 1, ?\Carbon\CarbonImmutable $at = null)
  * @method static \Meteric\Models\ItemOption setOption(\Meteric\Models\SubscriptionItem $item, string $key, string $value, string $type, ?\Meteric\Models\Price $price = null, float $qty = 1, ?\Carbon\CarbonImmutable $at = null)
  * @method static \Meteric\Models\SubscriptionItem setQuantity(\Meteric\Models\SubscriptionItem $item, float $qty, ?\Carbon\CarbonImmutable $at = null)

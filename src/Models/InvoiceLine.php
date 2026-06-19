@@ -13,7 +13,8 @@ use Meteric\Support\Period;
 
 /**
  * @property LineKind $kind
- * @property string $description
+ * @property ?string $title
+ * @property ?string $description
  * @property ?string $unit
  * @property float $quantity
  * @property Money $amount

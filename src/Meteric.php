@@ -13,15 +13,19 @@ use Meteric\Contracts\InvoiceDriver;
 use Meteric\Enums\DowngradePolicy;
 use Meteric\Enums\Interval;
 use Meteric\Enums\InvoiceState;
+use Meteric\Events\CreditNoteIssued;
 use Meteric\Events\InvoiceIssued;
 use Meteric\Events\InvoicePaid;
 use Meteric\Events\InvoicePartiallyPaid;
 use Meteric\Events\InvoiceVoided;
+use Meteric\Invoicing\CreditNoteDraft;
 use Meteric\Invoicing\InvoiceDraft;
+use Meteric\Invoicing\IssuedInvoice;
 use Meteric\Models\Addon;
 use Meteric\Models\BillingAccount;
 use Meteric\Models\Charge;
 use Meteric\Models\Commitment;
+use Meteric\Models\CreditNote;
 use Meteric\Models\Invoice;
 use Meteric\Models\ItemOption;
 use Meteric\Models\Payment;
@@ -110,6 +114,20 @@ final class Meteric
         InvoiceIssued::dispatch($invoice);
 
         return $invoice;
+    }
+
+    /**
+     * Issue a credit note against an invoice. This is the accounting reversal for
+     * a correction or a refund. The actual money return is your gateway's job.
+     */
+    public function creditNote(Invoice $invoice, Money $amount, ?string $reason = null): CreditNote
+    {
+        $issued = new IssuedInvoice($invoice->id, $invoice->number, $invoice->external_id, $invoice->external_url);
+        $result = $this->driver->creditNote($issued, new CreditNoteDraft($amount, $reason));
+        $note = CreditNote::findOrFail($result->creditNoteId);
+        CreditNoteIssued::dispatch($note);
+
+        return $note;
     }
 
     /** Void an issued, unpaid invoice. */

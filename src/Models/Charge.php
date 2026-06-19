@@ -21,7 +21,8 @@ use Meteric\Support\Period;
  * @property ChargeState $state
  * @property BillingMode $billing_mode
  * @property LineKind $kind
- * @property string $description
+ * @property ?string $title
+ * @property ?string $description
  * @property ?string $unit
  * @property Money $amount
  * @property int $amount_minor

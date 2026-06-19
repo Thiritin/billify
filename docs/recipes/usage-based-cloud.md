@@ -255,3 +255,20 @@ Wire the rollup and invoice into a schedule that runs at each customer's cycle
 close, then record payment when the gateway confirms it. See
 [Invoicing](/usage/invoicing) for the charge-vs-invoice guarantee and payment
 handling.
+
+## What the invoice looks like
+
+A cycle invoice for one VM: a prepaid base fee plus one in-arrears line per
+metered dimension, each summarising the cycle's usage.
+
+| Item | Detail | Qty | Unit | Amount |
+|------|--------|-----|------|--------|
+| Cloud VM - vm-7f3a.example | 2026-06-01 to 2026-07-01 | 1 | month | €20.00 |
+| Cloud VM - vm-7f3a.example | CPU: 312 hours | 312 | hours | €15.60 |
+| Cloud VM - vm-7f3a.example | Traffic: 1500 GB | 28 | blocks | €2.50 |
+| **Total (net)** | | | | **€38.10** |
+
+The usage lines are one per dimension, already summed for the cycle. The total
+consumed sits in `line->description` (multi-line, with the period) and in the
+charge metadata (`used`, `unit`, `overage`, `block_size`), so `line->usedSummary()`
+gives you "1500 GB" for display.

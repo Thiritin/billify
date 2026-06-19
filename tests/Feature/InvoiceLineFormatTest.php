@@ -38,7 +38,8 @@ it('titles a recurring line by the item label with a month unit and the period',
         ->create();
     $line = Meteric::invoicePending($acc)->lines->first();
 
-    expect($line->description)->toBe('vps12345.example')   // the title is the hostname, not "VPS XL"
+    expect($line->title)->toBe('VPS XL - vps12345.example')   // product + hostname on the name line
+        ->and($line->description)->toBe('2026-06-01 to 2026-07-01') // the period, separate
         ->and($line->unit)->toBe('month')
         ->and($line->coversLabel())->toBe('2026-06-01 to 2026-07-01');
 });
@@ -59,7 +60,8 @@ it('summarises a usage line with the total used and its unit', function () {
 
     // One line summarising the VM's total traffic for the cycle.
     expect($line->kind)->toBe(LineKind::Usage)
-        ->and($line->description)->toBe('vm-7f3a.example')
+        ->and($line->title)->toBe('Cloud - vm-7f3a.example')
+        ->and($line->description)->toBe("Traffic: 1500 GB\n2026-06-01 to 2026-07-01") // multi-line detail
         ->and($line->unit)->toBe('GB')
         ->and($line->usedSummary())->toBe('1500 GB')           // total summed across the cycle
         ->and($line->metadata['dimension'])->toBe('traffic')

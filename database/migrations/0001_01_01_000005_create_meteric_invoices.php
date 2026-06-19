@@ -50,7 +50,8 @@ return new class extends Migration
             $table->foreignUuid('invoice_id')->constrained('meteric_invoices')->cascadeOnDelete();
             $table->foreignUuid('charge_id')->nullable()->constrained('meteric_charges')->nullOnDelete();
             $table->string('kind');
-            $table->string('description');
+            $table->string('title')->nullable();             // line name (product + resource)
+            $table->text('description')->nullable();          // multi-line detail (period, usage breakdown)
             $table->decimal('quantity', 20, 6)->default(1);
             $table->string('unit')->nullable();              // quantity unit label (month, hours, GB)
             $table->bigInteger('unit_minor')->nullable();

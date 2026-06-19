@@ -40,6 +40,11 @@ no invoice. The unpaid invoice that triggered the suspension still stands. A
 `past_due` subscription keeps billing, which is what you want for contracts you
 intend to dun rather than cut off.
 
+`resume()` starts a fresh cycle from the resume date and bills it. The paused gap
+is forgiven, so a customer is not back-billed for time the service was off, and
+renewals continue from the new cycle. Pass an instant to resume at a specific
+time: `Meteric::resume($subscription, $at)`.
+
 Suspension works at the subscription and item level, not the addon. Addons and
 configurable options are billed on the item's cycle and have no separate
 lifecycle, so pausing the subscription suspends everything under it, and resuming

@@ -85,11 +85,33 @@ final class SubscriptionManager
         return $sub;
     }
 
-    /** Resume billing: state → active. Renewal continues from the current period. */
+    /**
+     * Resume billing: state → active, with each recurring item starting a fresh
+     * cycle from $at and billed now. The paused gap is forgiven (no active
+     * service while paused means no charge for it), and renewals continue from
+     * the new cycle.
+     */
     public function resume(Subscription $sub, ?CarbonImmutable $at = null): Subscription
     {
-        $sub->forceFill(['state' => SubscriptionState::Active])->save();
-        SubscriptionResumed::dispatch($sub);
+        $at ??= $this->clock->now();
+
+        DB::transaction(function () use ($sub, $at): void {
+            $sub->forceFill(['state' => SubscriptionState::Active])->save();
+
+            foreach ($sub->items()->where('state', ItemState::Active->value)->get() as $item) {
+                $item->setRelation('subscription', $sub);
+                if (! $item->price->isRecurring()) {
+                    continue;
+                }
+                $period = $item->price->recurrence()->period($at);
+                $plan = new BillingPlan([new PlannedPeriod($period, LineKind::Recurring)], $period);
+                $this->accruer->accrue($item, $plan);
+            }
+
+            $sub->forceFill(['current_period' => $this->earliestPeriod($sub)])->save();
+        });
+
+        SubscriptionResumed::dispatch($sub->refresh());
 
         return $sub;
     }

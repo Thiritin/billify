@@ -9,10 +9,13 @@ export default defineConfig({
   lastUpdated: true,
 
   head: [
-    ['meta', { name: 'theme-color', content: '#3c8772' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/meteric/logo.svg' }],
+    ['meta', { name: 'theme-color', content: '#4f46e5' }],
   ],
 
   themeConfig: {
+    logo: '/logo.svg',
+
     search: {
       provider: 'local',
     },

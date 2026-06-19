@@ -1,0 +1,248 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Meteric\Invoicing\Drivers;
+
+use Brick\Math\RoundingMode;
+use Brick\Money\Money;
+use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\Response;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Http;
+use LogicException;
+use Meteric\Contracts\InvoiceDriver;
+use Meteric\Invoicing\CreditNoteDraft;
+use Meteric\Invoicing\InvoiceDraft;
+use Meteric\Invoicing\IssuedCreditNote;
+use Meteric\Invoicing\IssuedInvoice;
+use Meteric\Models\CreditNote;
+use Meteric\Models\Invoice;
+use Meteric\Models\InvoiceLine;
+use RuntimeException;
+
+/**
+ * Lexware Office (formerly lexoffice) invoice driver. Composes the
+ * DatabaseInvoiceDriver for canonical local persistence, then pushes the
+ * finalized document to the Lexware Office REST API (api.lexoffice.io / v1).
+ *
+ * Failure boundary, read carefully:
+ * the local invoice is the source of truth. issue() first persists it via the
+ * composed local driver (which flips charges to invoiced in its own logic via
+ * the caller), then POSTs to lexoffice. If the POST fails AFTER the local
+ * issue, we do NOT roll back the local invoice: it already exists and is
+ * authoritative. We re-throw so the caller learns the downstream sync failed.
+ * The charge-vs-invoice guarantee holds because the local invoice stands; only
+ * the external mirror is missing, and that can be re-synced. We never delete a
+ * local invoice to chase a remote outage.
+ */
+final class LexofficeInvoiceDriver implements InvoiceDriver
+{
+    public function __construct(
+        private DatabaseInvoiceDriver $local,
+        private string $apiToken,
+        private string $baseUrl = 'https://api.lexoffice.io',
+        private string $taxType = 'net',
+        private string $defaultCountry = 'DE',
+    ) {}
+
+    public function issue(InvoiceDraft $draft): IssuedInvoice
+    {
+        $issued = $this->local->issue($draft);
+
+        /** @var Invoice $invoice */
+        $invoice = Invoice::with('lines')->findOrFail($issued->invoiceId);
+
+        $body = $this->invoiceBody($invoice, $draft);
+
+        $response = $this->client()->post('/v1/invoices?finalize=true', $body);
+        $data = $this->ok($response, 'invoice');
+
+        $externalId = (string) $data['id'];
+        $externalUrl = (string) ($data['resourceUri'] ?? '');
+
+        $invoice->forceFill([
+            'external_id' => $externalId,
+            'external_url' => $externalUrl,
+        ])->save();
+
+        return new IssuedInvoice(
+            invoiceId: $invoice->id,
+            number: $invoice->number,
+            externalId: $externalId,
+            externalUrl: $externalUrl,
+        );
+    }
+
+    public function creditNote(IssuedInvoice $invoice, CreditNoteDraft $draft): IssuedCreditNote
+    {
+        $result = $this->local->creditNote($invoice, $draft);
+
+        /** @var CreditNote $note */
+        $note = CreditNote::with('invoice.account')->findOrFail($result->creditNoteId);
+
+        $body = $this->creditNoteBody($note, $draft);
+
+        $response = $this->client()->post('/v1/credit-notes?finalize=true', $body);
+        $data = $this->ok($response, 'credit-note');
+
+        $externalId = (string) $data['id'];
+
+        $note->forceFill(['external_id' => $externalId])->save();
+
+        return new IssuedCreditNote(
+            creditNoteId: $note->id,
+            number: $note->number,
+            externalId: $externalId,
+        );
+    }
+
+    /**
+     * Lexware Office does not allow deleting or voiding a finalized invoice: the
+     * documented correction path is a credit note. We therefore refuse to void a
+     * finalized lexoffice invoice and point the caller at creditNote(). A local
+     * draft that never reached lexoffice (no external id) is voided locally.
+     */
+    public function void(IssuedInvoice $invoice): void
+    {
+        $model = Invoice::find($invoice->invoiceId);
+
+        if ($model !== null && $model->external_id === null) {
+            $this->local->void($invoice);
+
+            return;
+        }
+
+        throw new LogicException(
+            'Lexware Office does not permit voiding a finalized invoice. '.
+            'Issue a credit note to correct or reverse it.'
+        );
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function invoiceBody(Invoice $invoice, InvoiceDraft $draft): array
+    {
+        $profile = $draft->account->tax_profile ?? [];
+        $date = ($invoice->issued_at ?? Carbon::now())->toRfc3339String();
+
+        $lineItems = $invoice->lines
+            ->map(fn (InvoiceLine $line): array => $this->lineItem($line, $invoice->currency))
+            ->values()
+            ->all();
+
+        return [
+            'voucherDate' => $date,
+            'address' => [
+                'name' => (string) ($profile['name'] ?? 'Customer'),
+                'countryCode' => (string) ($profile['country'] ?? $this->defaultCountry),
+            ],
+            'lineItems' => $lineItems,
+            'totalPrice' => [
+                'currency' => $invoice->currency,
+            ],
+            'taxConditions' => [
+                'taxType' => $this->taxType,
+            ],
+            'shippingConditions' => [
+                'shippingDate' => $date,
+                'shippingType' => 'service',
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function lineItem(InvoiceLine $line, string $currency): array
+    {
+        return [
+            'type' => 'custom',
+            'name' => (string) ($line->title ?? $line->description ?? ''),
+            'description' => (string) ($line->description ?? ''),
+            'quantity' => (float) $line->quantity,
+            'unitName' => $line->unit,
+            'unitPrice' => [
+                'currency' => $currency,
+                'netAmount' => $this->minorToDecimal($line->amount_minor, $currency),
+                'taxRatePercentage' => (int) round($line->tax_rate * 100),
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function creditNoteBody(CreditNote $note, CreditNoteDraft $draft): array
+    {
+        $invoice = $note->invoice;
+        $profile = $invoice?->account?->tax_profile ?? [];
+        $date = ($note->issued_at ?? Carbon::now())->toRfc3339String();
+        $currency = $note->currency;
+
+        return [
+            'voucherDate' => $date,
+            'address' => [
+                'name' => (string) ($profile['name'] ?? 'Customer'),
+                'countryCode' => (string) ($profile['country'] ?? $this->defaultCountry),
+            ],
+            'lineItems' => [[
+                'type' => 'custom',
+                'name' => $draft->reason ?? 'Credit note',
+                'description' => $draft->reason ?? '',
+                'quantity' => 1.0,
+                'unitName' => null,
+                'unitPrice' => [
+                    'currency' => $currency,
+                    'netAmount' => $this->minorToDecimal($note->amount_minor, $currency),
+                    'taxRatePercentage' => 0,
+                ],
+            ]],
+            'totalPrice' => [
+                'currency' => $currency,
+            ],
+            'taxConditions' => [
+                'taxType' => $this->taxType,
+            ],
+        ];
+    }
+
+    /**
+     * Integer minor units to a 2-decimal major-unit float, no float drift on
+     * the stored value (brick/money does the division exactly, then we render).
+     */
+    private function minorToDecimal(int $minor, string $currency): float
+    {
+        $money = Money::ofMinor($minor, $currency);
+
+        return (float) $money->getAmount()->toScale(2, RoundingMode::HALF_UP)->__toString();
+    }
+
+    private function client(): PendingRequest
+    {
+        return Http::withToken($this->apiToken)
+            ->acceptJson()
+            ->baseUrl($this->baseUrl);
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function ok(Response $response, string $what): array
+    {
+        if ($response->failed()) {
+            throw new RuntimeException(sprintf(
+                'Lexware Office %s request failed (HTTP %d): %s',
+                $what,
+                $response->status(),
+                $response->body(),
+            ));
+        }
+
+        /** @var array<string,mixed> $json */
+        $json = $response->json();
+
+        return $json;
+    }
+}

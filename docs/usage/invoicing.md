@@ -41,7 +41,7 @@ system, bind a class implementing `Meteric\Contracts\InvoiceDriver`:
     'driver' => 'lexoffice',
     'drivers' => [
         'database'  => \Meteric\Invoicing\Drivers\DatabaseInvoiceDriver::class,
-        'lexoffice' => \App\Billing\LexofficeInvoiceDriver::class,
+        'lexoffice' => \Meteric\Invoicing\Drivers\LexofficeInvoiceDriver::class,
     ],
     'mirror_to_database' => true,
 ],
@@ -52,6 +52,15 @@ remote driver that fails to reach its API should throw rather than swallow the
 error. With `mirror_to_database` on, the canonical invoice is still written
 locally even when a remote driver is primary. Reach the active driver directly
 with `Meteric::driver()`.
+
+The bundled `lexoffice` driver wraps the `database` driver: it persists the
+canonical local invoice first, then finalizes the document in Lexware Office
+(`POST /v1/invoices?finalize=true`) and stores the returned id and resource URI
+on `external_id` / `external_url`. The local invoice is the source of truth, so
+if the Lexware Office call fails it re-throws without rolling the local invoice
+back. Lexware Office cannot void a finalized invoice, so `void()` refuses one
+that already reached the API and points you at a credit note instead. Set the
+token with `METERIC_LEXOFFICE_TOKEN`.
 
 ## Payments
 

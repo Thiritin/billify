@@ -17,6 +17,7 @@ use Meteric\Contracts\Clock;
 use Meteric\Contracts\InvoiceDriver;
 use Meteric\Contracts\TaxResolver;
 use Meteric\Invoicing\Drivers\DatabaseInvoiceDriver;
+use Meteric\Invoicing\Drivers\LexofficeInvoiceDriver;
 use Meteric\Proration\Prorator;
 use Meteric\Quoting\QuoteBuilder;
 use Meteric\Subscriptions\CommitmentManager;
@@ -72,7 +73,16 @@ final class MetericServiceProvider extends ServiceProvider
             $key = $cfg['driver'] ?? 'database';
             $class = $cfg['drivers'][$key] ?? DatabaseInvoiceDriver::class;
 
-            return $app->make($class);
+            return match ($class) {
+                LexofficeInvoiceDriver::class => new LexofficeInvoiceDriver(
+                    local: new DatabaseInvoiceDriver($app->make(TaxResolver::class)),
+                    apiToken: (string) ($cfg['lexoffice']['api_token'] ?? ''),
+                    baseUrl: $cfg['lexoffice']['base_url'] ?? 'https://api.lexoffice.io',
+                    taxType: $cfg['lexoffice']['tax_type'] ?? 'net',
+                    defaultCountry: $cfg['lexoffice']['country'] ?? 'DE',
+                ),
+                default => $app->make($class),
+            };
         });
 
         $this->app->singleton(Prorator::class, function ($app) {

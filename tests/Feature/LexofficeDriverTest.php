@@ -1,0 +1,219 @@
+<?php
+
+declare(strict_types=1);
+
+use Brick\Money\Money;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
+use Meteric\Contracts\TaxResolver;
+use Meteric\Enums\ChargeState;
+use Meteric\Enums\LineKind;
+use Meteric\Invoicing\CreditNoteDraft;
+use Meteric\Invoicing\Drivers\DatabaseInvoiceDriver;
+use Meteric\Invoicing\Drivers\LexofficeInvoiceDriver;
+use Meteric\Invoicing\InvoiceDraft;
+use Meteric\Invoicing\IssuedInvoice;
+use Meteric\Models\BillingAccount;
+use Meteric\Models\Charge;
+use Meteric\Models\CreditNote;
+use Meteric\Models\Invoice;
+
+uses(RefreshDatabase::class);
+
+function lexAccount(): BillingAccount
+{
+    return BillingAccount::create([
+        'owner_type' => 'user', 'owner_id' => '1', 'currency' => 'EUR',
+        'tax_profile' => ['country' => 'DE', 'merchant_country' => 'DE', 'name' => 'Bike & Ride GmbH'],
+    ]);
+}
+
+function lexCharge(BillingAccount $account, int $amountMinor, string $title, string $desc): Charge
+{
+    return Charge::create([
+        'account_id' => $account->id,
+        'origin_type' => 'manual', 'origin_id' => (string) Str::uuid(),
+        'kind' => LineKind::Recurring, 'billing_mode' => 'in_advance',
+        'state' => ChargeState::Pending, 'title' => $title, 'description' => $desc,
+        'quantity' => 1, 'unit' => 'Stück', 'unit_minor' => $amountMinor, 'amount_minor' => $amountMinor,
+        'currency' => 'EUR', 'idempotency_key' => (string) Str::uuid(),
+    ]);
+}
+
+function lexDriver(): LexofficeInvoiceDriver
+{
+    return new LexofficeInvoiceDriver(
+        local: app(DatabaseInvoiceDriver::class),
+        apiToken: 'test-token',
+        baseUrl: 'https://api.lexoffice.io',
+        taxType: 'net',
+        defaultCountry: 'DE',
+    );
+}
+
+function lexDraft(BillingAccount $account): InvoiceDraft
+{
+    $charges = Charge::where('account_id', $account->id)
+        ->where('state', ChargeState::Pending->value)
+        ->get();
+
+    return new InvoiceDraft(
+        account: $account,
+        currency: 'EUR',
+        charges: $charges,
+        idempotencyKey: (string) Str::uuid(),
+    );
+}
+
+function lexInvoiceResponse(string $id = 'e9066f04-8cc7-4616-93f8-ac9ecc8479c8'): array
+{
+    return [
+        'id' => $id,
+        'resourceUri' => "https://api.lexoffice.io/v1/invoices/{$id}",
+        'createdDate' => '2023-06-17T18:32:07.480+02:00',
+        'updatedDate' => '2023-06-17T18:32:07.551+02:00',
+        'version' => 1,
+    ];
+}
+
+beforeEach(function () {
+    app()->bind(DatabaseInvoiceDriver::class, fn ($app) => new DatabaseInvoiceDriver(
+        $app->make(TaxResolver::class)
+    ));
+});
+
+it('issues an invoice through the lexoffice driver and stores the external id', function () {
+    Http::fake([
+        'api.lexoffice.io/v1/invoices*' => Http::response(lexInvoiceResponse(), 201),
+    ]);
+
+    $account = lexAccount();
+    lexCharge($account, 1560, 'VPS XL', "Hosting plan\nFrankfurt region");
+
+    $draft = lexDraft($account);
+    $issued = lexDriver()->issue($draft);
+
+    expect($issued)->toBeInstanceOf(IssuedInvoice::class)
+        ->and($issued->externalId)->toBe('e9066f04-8cc7-4616-93f8-ac9ecc8479c8')
+        ->and($issued->externalUrl)->toBe('https://api.lexoffice.io/v1/invoices/e9066f04-8cc7-4616-93f8-ac9ecc8479c8');
+
+    $invoice = Invoice::findOrFail($issued->invoiceId);
+    expect($invoice->external_id)->toBe('e9066f04-8cc7-4616-93f8-ac9ecc8479c8')
+        ->and($invoice->external_url)->toBe('https://api.lexoffice.io/v1/invoices/e9066f04-8cc7-4616-93f8-ac9ecc8479c8');
+
+    Http::assertSent(function ($request) {
+        $body = $request->data();
+
+        return $request->method() === 'POST'
+            && $request->url() === 'https://api.lexoffice.io/v1/invoices?finalize=true'
+            && $request->hasHeader('Authorization', 'Bearer test-token')
+            && $body['taxConditions']['taxType'] === 'net'
+            && $body['shippingConditions']['shippingType'] === 'service'
+            && $body['address']['name'] === 'Bike & Ride GmbH'
+            && $body['address']['countryCode'] === 'DE'
+            && $body['lineItems'][0]['type'] === 'custom'
+            && $body['lineItems'][0]['name'] === 'VPS XL'
+            && $body['lineItems'][0]['description'] === "Hosting plan\nFrankfurt region"
+            && $body['lineItems'][0]['quantity'] === 1.0
+            && $body['lineItems'][0]['unitName'] === 'Stück';
+    });
+});
+
+it('maps a EUR 15.60 net line at 19 percent tax to lexoffice decimals', function () {
+    Http::fake([
+        'api.lexoffice.io/v1/invoices*' => Http::response(lexInvoiceResponse(), 201),
+    ]);
+
+    $account = lexAccount();
+    lexCharge($account, 1560, 'VPS XL', 'Hosting');
+
+    lexDriver()->issue(lexDraft($account));
+
+    Http::assertSent(function ($request) {
+        $price = $request->data()['lineItems'][0]['unitPrice'];
+
+        return $price['currency'] === 'EUR'
+            && $price['netAmount'] === 15.6
+            && $price['taxRatePercentage'] === 19;
+    });
+});
+
+it('issues a credit note through the lexoffice driver and stores the returned id', function () {
+    Http::fake([
+        'api.lexoffice.io/v1/invoices*' => Http::response(lexInvoiceResponse(), 201),
+        'api.lexoffice.io/v1/credit-notes*' => Http::response(
+            lexInvoiceResponse('aa111111-2222-3333-4444-555566667777') +
+            ['resourceUri' => 'https://api.lexoffice.io/v1/credit-notes/aa111111-2222-3333-4444-555566667777'],
+            201
+        ),
+    ]);
+
+    $account = lexAccount();
+    lexCharge($account, 1560, 'VPS XL', 'Hosting');
+
+    $driver = lexDriver();
+    $issued = $driver->issue(lexDraft($account));
+
+    $creditDraft = new CreditNoteDraft(
+        amount: Money::ofMinor(1560, 'EUR'),
+        reason: 'Customer refund',
+    );
+
+    $result = $driver->creditNote($issued, $creditDraft);
+
+    expect($result->externalId)->toBe('aa111111-2222-3333-4444-555566667777');
+
+    $note = CreditNote::findOrFail($result->creditNoteId);
+    expect($note->external_id)->toBe('aa111111-2222-3333-4444-555566667777');
+
+    Http::assertSent(function ($request) {
+        if (! str_contains($request->url(), '/v1/credit-notes')) {
+            return false;
+        }
+        $body = $request->data();
+
+        return $request->url() === 'https://api.lexoffice.io/v1/credit-notes?finalize=true'
+            && $request->hasHeader('Authorization', 'Bearer test-token')
+            && $body['lineItems'][0]['name'] === 'Customer refund'
+            && $body['lineItems'][0]['unitPrice']['netAmount'] === 15.6
+            && $body['taxConditions']['taxType'] === 'net';
+    });
+});
+
+it('throws on a failed lexoffice response while keeping the local invoice', function () {
+    Http::fake([
+        'api.lexoffice.io/v1/invoices*' => Http::response([
+            'IssueList' => [[
+                'i18nKey' => 'invalid_value',
+                'source' => 'lineItems[0].unitPrice',
+                'type' => 'validation_failure',
+            ]],
+        ], 406),
+    ]);
+
+    $account = lexAccount();
+    lexCharge($account, 1560, 'VPS XL', 'Hosting');
+
+    expect(fn () => lexDriver()->issue(lexDraft($account)))
+        ->toThrow(RuntimeException::class);
+
+    // Local invoice is the source of truth: it still exists, with no external id.
+    $invoice = Invoice::firstOrFail();
+    expect($invoice->external_id)->toBeNull()
+        ->and($invoice->number)->not->toBeNull();
+});
+
+it('refuses to void a finalized lexoffice invoice and points at credit notes', function () {
+    Http::fake([
+        'api.lexoffice.io/v1/invoices*' => Http::response(lexInvoiceResponse(), 201),
+    ]);
+
+    $account = lexAccount();
+    lexCharge($account, 1560, 'VPS XL', 'Hosting');
+
+    $driver = lexDriver();
+    $issued = $driver->issue(lexDraft($account));
+
+    expect(fn () => $driver->void($issued))->toThrow(LogicException::class);
+});

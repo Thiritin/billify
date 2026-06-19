@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Meteric\Enums\BillingMode;
 use Meteric\Enums\FirstPeriodPolicy;
 use Meteric\Invoicing\Drivers\DatabaseInvoiceDriver;
+use Meteric\Invoicing\Drivers\LexofficeInvoiceDriver;
 use Meteric\Tax\DatabaseTaxResolver;
 use Meteric\Tax\EuVatResolver;
 use Meteric\Tax\FlatRateTaxResolver;
@@ -91,13 +92,21 @@ return [
         'driver' => env('METERIC_INVOICE_DRIVER', 'database'),
         'drivers' => [
             'database' => DatabaseInvoiceDriver::class,
-            // 'lexoffice' => \App\Billing\LexofficeInvoiceDriver::class,
+            'lexoffice' => LexofficeInvoiceDriver::class,
         ],
         // Mirror canonical record to DB even when a remote driver is primary.
         'mirror_to_database' => env('METERIC_INVOICE_MIRROR', true),
 
         // Days after issue an invoice is due. meteric:mark-overdue uses this.
         'net_days' => (int) env('METERIC_INVOICE_NET_DAYS', 14),
+
+        // Lexware Office (lexoffice) driver settings.
+        'lexoffice' => [
+            'api_token' => env('METERIC_LEXOFFICE_TOKEN'),
+            'base_url' => env('METERIC_LEXOFFICE_BASE_URL', 'https://api.lexoffice.io'),
+            'tax_type' => env('METERIC_LEXOFFICE_TAX_TYPE', 'net'), // net | gross | vatfree
+            'country' => env('METERIC_LEXOFFICE_COUNTRY', 'DE'),
+        ],
     ],
 
     /*

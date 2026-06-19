@@ -82,6 +82,25 @@ it('defers billing during a trial', function () {
         ->and(Charge::where('subscription_id', $sub->id)->count())->toBe(0);
 });
 
+it('defers the trial then bills the first real cycle on renewal', function () {
+    $acc = account();
+    $sub = Meteric::subscribe()->account($acc)
+        ->trialDays(14)
+        ->at(CarbonImmutable::parse('2026-06-01T00:00:00Z'))
+        ->add(vpsPrice(1000), 1)
+        ->create();
+
+    // Nothing billed during the trial (trial_end = 2026-06-15).
+    expect(Charge::where('subscription_id', $sub->id)->count())->toBe(0);
+
+    // The first post-trial cycle runs 06-15 → 07-15; renew once it has elapsed.
+    $created = Meteric::renew($sub, CarbonImmutable::parse('2026-07-16T00:00:00Z'));
+
+    expect($created)->toHaveCount(1)
+        ->and(Charge::where('subscription_id', $sub->id)->count())->toBe(1)
+        ->and(Charge::where('subscription_id', $sub->id)->first()->amount_minor)->toBe(1000);
+});
+
 it('is idempotent — re-accruing the same window bills nothing extra', function () {
     $acc = account();
     $price = vpsPrice(1000);

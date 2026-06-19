@@ -56,6 +56,20 @@ it('applies the committed rate on renewal', function () {
         ->and(Charge::where('subscription_id', $sub->id)->where('amount_minor', 800)->exists())->toBeTrue();
 });
 
+it('charges a remaining-percentage early termination fee', function () {
+    $item = commitItem();
+    // 12-month term, €8/period committed rate, fee = 50% of the remaining periods.
+    $commitment = Meteric::commit($item, Interval::Month, 12, Money::of('0', 'EUR'), Money::of('8.00', 'EUR'),
+        earlyTerm: ['remaining_pct' => 0.5], at: CarbonImmutable::parse('2026-06-01T00:00:00Z'));
+
+    // Terminate 3 months in → 9 periods remain. 800 × 9 × 0.5 = 3600.
+    $fee = Meteric::terminateCommitment($commitment, CarbonImmutable::parse('2026-09-01T00:00:00Z'));
+
+    expect($fee->getMinorAmount()->toInt())->toBe(3600)
+        ->and($commitment->fresh()->state)->toBe(CommitmentState::Terminated)
+        ->and(Charge::where('description', 'Early termination fee')->where('amount_minor', 3600)->exists())->toBeTrue();
+});
+
 it('charges a fixed early termination fee', function () {
     $item = commitItem();
     $commitment = Meteric::commit($item, Interval::Year, 1, Money::of('0', 'EUR'), Money::of('8.00', 'EUR'),

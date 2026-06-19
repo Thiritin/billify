@@ -49,6 +49,26 @@ it('renews the next cycle when the period has elapsed', function () {
         ->and(Charge::where('subscription_id', $sub->id)->count())->toBe(2);
 });
 
+it('catches up every missed cycle and is idempotent at the same instant', function () {
+    $acc = freshAccount();
+    $sub = subAt($acc, planPrice(1000, 'std'), '2026-06-01T00:00:00Z');
+
+    // First cycle (June) already billed.
+    expect(Charge::where('subscription_id', $sub->id)->count())->toBe(1);
+
+    // Renew well past two more cycle ends → bills July and August in one call.
+    $at = CarbonImmutable::parse('2026-08-15T00:00:00Z');
+    $created = Meteric::renew($sub, $at);
+
+    expect($created)->toHaveCount(2)
+        ->and(Charge::where('subscription_id', $sub->id)->count())->toBe(3);
+
+    // Re-running at the same instant accrues nothing more (the guard holds).
+    $again = Meteric::renew($sub->fresh(), $at);
+    expect($again)->toHaveCount(0)
+        ->and(Charge::where('subscription_id', $sub->id)->count())->toBe(3);
+});
+
 it('does not renew before the period elapses', function () {
     $acc = freshAccount();
     $sub = subAt($acc, planPrice(1000, 'std'), '2026-06-01T00:00:00Z');

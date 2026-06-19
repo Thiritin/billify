@@ -1,6 +1,6 @@
 # Meteric
 
-[![test](https://github.com/thiritin/meteric/workflows/test/badge.svg)](https://github.com/thiritin/meteric/actions?query=workflow:"test")
+[![tests](https://github.com/Thiritin/meteric/actions/workflows/tests.yml/badge.svg)](https://github.com/Thiritin/meteric/actions/workflows/tests.yml)
 [![GitHub tag](https://img.shields.io/github/tag/thiritin/meteric?include_prereleases=&sort=semver&color=blue)](https://github.com/thiritin/meteric/releases/)
 [![License](https://img.shields.io/badge/License-MIT-blue)](#license)
 [![issues - meteric](https://img.shields.io/github/issues/thiritin/meteric)](https://github.com/thiritin/meteric/issues)

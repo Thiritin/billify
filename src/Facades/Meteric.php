@@ -30,6 +30,7 @@ use Meteric\Models\Payment;
  * @method static \Meteric\Models\Addon addAddon(\Meteric\Models\SubscriptionItem $item, \Meteric\Models\Price $price, ?string $group = null, float $qty = 1, ?\Carbon\CarbonImmutable $at = null)
  * @method static \Meteric\Models\ItemOption setOption(\Meteric\Models\SubscriptionItem $item, string $key, string $value, string $type, ?\Meteric\Models\Price $price = null, float $qty = 1, ?\Carbon\CarbonImmutable $at = null)
  * @method static \Meteric\Models\SubscriptionItem setQuantity(\Meteric\Models\SubscriptionItem $item, float $qty, ?\Carbon\CarbonImmutable $at = null)
+ * @method static ?\Meteric\Support\Period billingCycle(\Meteric\Models\SubscriptionItem $item)
  * @method static \Meteric\Models\UsageRecord recordUsage(\Meteric\Models\SubscriptionItem $item, string $dimension, float $quantity, ?\Carbon\CarbonImmutable $occurredAt = null, ?string $key = null)
  * @method static array rollupUsage(\Meteric\Models\SubscriptionItem $item, \Meteric\Support\Period $period)
  * @method static InvoiceDriver driver()

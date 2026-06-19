@@ -100,6 +100,16 @@ class SubscriptionItem extends MetericModel
         return $this->billing_mode ?? $this->price->billing_mode ?? BillingMode::InAdvance;
     }
 
+    /**
+     * The current billing cycle window. Query your usage API for this range, then
+     * record the cycle-to-date value with 'last' aggregation: rollup takes the
+     * latest report as the cycle total, and the next cycle starts fresh.
+     */
+    public function billingCycle(): ?Period
+    {
+        return $this->current_period;
+    }
+
     /** Amount for one full period: committed rate while under an active commitment, else price. */
     public function periodAmount(): Money
     {

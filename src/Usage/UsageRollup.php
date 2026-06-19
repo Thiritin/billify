@@ -74,6 +74,7 @@ final class UsageRollup
                     ->where('item_id', $item->id)
                     ->where('dimension_id', $dimension->id)
                     ->whereRaw('occurred_at >= ? AND occurred_at < ?', [$period->start, $period->end])
+                    ->orderBy('occurred_at')   // so 'last' aggregation takes the latest report
                     ->get();
 
                 if ($records->isEmpty()) {
@@ -96,11 +97,17 @@ final class UsageRollup
                     'billing_mode' => BillingMode::InArrears,
                     'state' => ChargeState::Pending,
                     'description' => "{$dimension->key} usage",
-                    'quantity' => $dimension->billableQuantity($used),
+                    'quantity' => $dimension->billedUnits($used),  // blocks when block_size set, else overage units
                     'unit_rate' => $dimension->rate,
                     'amount_minor' => $amount->getMinorAmount()->toInt(),
                     'currency' => $dimension->currency,
                     'covers' => $period,
+                    'metadata' => [
+                        'used' => $used,
+                        'unit' => $dimension->unit,
+                        'overage' => $dimension->overage($used),
+                        'block_size' => $dimension->block_size,
+                    ],
                     'idempotency_key' => 'usage_'.Str::uuid()->toString(),
                 ]);
 

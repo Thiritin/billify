@@ -37,18 +37,38 @@ stays exact.
 |---------------|---------------------|
 | `Sum` | Adding every reported quantity (total cpu-hours). |
 | `Max` | The largest reported value (peak concurrent slots). |
-| `Last` | The last reported value (a gauge). |
+| `Last` | The latest reported value by `occurred_at` (a gauge or a cycle-to-date counter). |
 
-### Allowance and cap
+### Allowance, cap, and unit
 
-`included_qty` is subtracted before charging, the billable quantity is
+`included_qty` is the free allowance, subtracted before charging. The overage is
 `max(0, used - included_qty)`. `cap_minor`, if set, clamps the charge so a
-runaway window never bills more than the cap.
+runaway window never bills more than the cap. `unit` is a label (`GB`, `TB`,
+`requests`) carried onto the charge metadata for formatting later.
 
 ```php
-$dimension->billableQuantity(150); // 50.0 with a 100 allowance
-$dimension->amountFor(150);        // Money: round(50 × rate), clamped to the cap
+$dimension->overage(150);    // 50.0 with a 100 allowance
+$dimension->amountFor(150);  // Money: round(billed units × rate), clamped to the cap
 ```
+
+### Per-unit or per-block pricing
+
+By default the rate is per unit of overage. Set `block_size` to bill per block
+instead: the overage is divided into blocks and a started block counts full
+(`ceil`). The rate is then the price per block.
+
+```php
+MeterDimension::create([
+    // ... product, key, unit ...
+    'included_qty' => 100,        // first 100 TB free
+    'block_size'   => 50,         // bill per 50 TB block
+    'rate'         => '5.00',     // €5 per block
+]);
+```
+
+With 100 TB free and €5 per 50 TB block: 101 to 150 TB bills one block (€5), 151
+to 200 TB bills two (€10). The charge's `quantity` is the number of blocks, and
+its metadata holds `used`, `unit`, `overage`, and `block_size`.
 
 ## Recording usage
 
@@ -70,6 +90,24 @@ is idempotent on `key`: report the same key twice and the second call returns th
 existing record rather than double-counting. Use a stable key per metering event
 (a window id, a meter reading id) so retries are safe. The dimension is resolved
 by `key` against the item's product, so it must exist on that product.
+
+### Cycle-to-date counters
+
+Some platforms expose usage as a counter that resets each billing cycle: query
+the tenant API and it returns the cycle total so far. Bill that with `Last`
+aggregation. Record the counter value as it changes (or once near close), and
+rollup takes the latest reading by `occurred_at` as the cycle total. The next
+cycle starts fresh because rollup only reads records inside the cycle window.
+
+`billingCycle()` gives you that window, so you know what range to ask the API for:
+
+```php
+$cycle = Meteric::billingCycle($item);   // a Period, or null before activation
+
+$used = $tenantApi->trafficBetween($cycle->start, $cycle->end); // cycle to date
+
+Meteric::recordUsage($item, 'traffic', $used, key: "traffic-{$cycle->start->toDateString()}");
+```
 
 ## Rolling up
 

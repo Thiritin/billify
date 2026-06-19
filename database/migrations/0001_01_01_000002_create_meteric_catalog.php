@@ -92,7 +92,8 @@ return new class extends Migration
             $table->string('key');
             $table->string('unit');
             $table->string('aggregation')->default(Aggregation::Sum->value);
-            $table->decimal('rate', 20, 8);                          // per-unit rate (major units, sub-cent capable)
+            $table->decimal('rate', 20, 8);                          // price per unit, or per block when block_size is set
+            $table->decimal('block_size', 20, 6)->nullable();        // bill per block of this many units (ceil); null = per unit
             $table->char('currency', 3);
             $table->decimal('included_qty', 20, 6)->default(0);      // free allowance per cycle
             $table->bigInteger('cap_minor')->nullable();

@@ -261,6 +261,12 @@ final class Meteric
         return app(CommitmentManager::class)->terminate($commitment, $at);
     }
 
+    /** The current billing cycle window for an item (query your usage API for this range). */
+    public function billingCycle(SubscriptionItem $item): ?Period
+    {
+        return $item->billingCycle();
+    }
+
     /** Report metered usage for an item's dimension (idempotent on $key). */
     public function recordUsage(SubscriptionItem $item, string $dimension, float $quantity, ?CarbonImmutable $occurredAt = null, ?string $key = null): UsageRecord
     {

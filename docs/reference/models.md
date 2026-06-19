@@ -108,11 +108,12 @@ maps to invoices.
 
 `meteric_meter_dimensions`: a usage axis on a product.
 
-- **Columns:** `key`, `aggregation`, `rate` (string), `currency`, `included_qty`, `cap_minor`, `tiers` (array).
+- **Columns:** `key`, `unit`, `aggregation`, `rate` (string), `block_size`, `currency`, `included_qty`, `cap_minor`, `tiers` (array).
 - **Relationships:** `product()`.
 - **Helpers:**
-  - `billableQuantity(float $used): float`: `used` minus allowance.
-  - `amountFor(float $used): Money`: billable × rate, clamped to the cap.
+  - `overage(float $used): float`: `used` minus allowance.
+  - `billedUnits(float $used): float`: overage, or block count when `block_size` is set.
+  - `amountFor(float $used): Money`: billed units × rate, clamped to the cap.
 
 ## UsageRecord
 

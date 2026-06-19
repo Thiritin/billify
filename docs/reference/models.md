@@ -57,9 +57,11 @@ can have a parent for consolidated billing.
 
 `meteric_subscription_items`: a billed line within a subscription.
 
-- **Columns:** `subscription_id`, `product_id`, `price_id`, `quantity`, `billing_mode` (nullable override), `state`, `current_period` (Period), `pending_change` (array), `resource_type` / `resource_id` (morph).
+- **Columns:** `subscription_id`, `product_id`, `price_id`, `label` (line title, e.g. a hostname), `quantity`, `billing_mode` (nullable override), `state`, `current_period` (Period), `pending_change` (array), `resource_type` / `resource_id` (morph).
 - **Relationships:** `subscription()`, `product()`, `price()`, `resource()` (morph), `addons()`, `options()`, `commitment()`, `usageRecords()`.
 - **Helpers:**
+  - `lineTitle(): string`: the `label` if set, else the product name. Becomes the invoice line title.
+  - `billingCycle(): ?Period`: the current cycle window (query your usage API for this range).
   - `billingMode(): BillingMode`: item override → price → `InAdvance`.
   - `periodAmount(): Money`: committed rate while a commitment is active, else the price amount.
   - `hasPendingChange(): bool`: a deferred plan change is queued.
@@ -91,9 +93,12 @@ can have a parent for consolidated billing.
 
 `meteric_invoice_lines`: one line of an invoice, with its own service period.
 
-- **Columns:** `kind`, `amount_minor`, `tax_rate`, `tax_minor`, `currency`, `covers` (Period), `quantity`, `unit_rate`, `sort`.
+- **Columns:** `kind`, `description` (line title), `unit` (quantity unit: month, hours, GB), `quantity`, `unit_minor`, `unit_rate`, `amount_minor`, `tax_rate`, `tax_minor`, `currency`, `covers` (Period), `metadata`, `sort`.
 - **Relationships:** `invoice()`, `charge()`.
-- **Helpers:** `gross(): Money`: amount + tax.
+- **Helpers:**
+  - `gross(): Money`: amount + tax.
+  - `coversLabel(string $format = 'Y-m-d'): ?string`: the service period as text, e.g. `2026-06-01 to 2026-07-01`.
+  - `usedSummary(): ?string`: for usage lines, the total consumed and unit, e.g. `1500 GB` (from the rollup metadata).
 
 ## Payment / PaymentAllocation
 

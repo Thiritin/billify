@@ -68,3 +68,18 @@ jobs:
           DB_USERNAME: postgres
           DB_PASSWORD: secret
         run: vendor/bin/pest
+
+  # Single required check for branch protection: green only if quality + every
+  # matrix test job passed. Lets auto-merge gate on one stable context.
+  ci-success:
+    if: always()
+    needs: [quality, test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all jobs passed
+        run: |
+          if [ "${{ needs.quality.result }}" != "success" ] || [ "${{ needs.test.result }}" != "success" ]; then
+            echo "A required job failed."
+            exit 1
+          fi
+          echo "All green."

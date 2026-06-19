@@ -133,3 +133,6 @@ Two models, picked by `pricing_model`:
 
 This runs through `amountFor()`, so it applies anywhere a quantity is priced:
 base items, configurable options (slots, extra IPs), and addons.
+
+See also: [Build a web hosting company's billing](/recipes/web-hosting-company)
+for a full catalog (plans, setup fees, domains, addons, volume-priced IPs).

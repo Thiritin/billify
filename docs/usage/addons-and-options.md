@@ -83,3 +83,8 @@ All of these write `pending` charges and credits with the item's current period
 as their `covers` window. They appear on the next [invoice](/usage/invoicing)
 for the account. Nothing is charged to a card here, Meteric accrues; your
 invoice driver and gateway settle.
+
+See also: [Build a web hosting company's billing](/recipes/web-hosting-company)
+books addons and a volume-priced option, and
+[Bill a gameserver per slot and per hour](/recipes/gameserver-slots) prices slots
+as a configurable option.

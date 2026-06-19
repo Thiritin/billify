@@ -65,3 +65,6 @@ prorate or forfeit, so a change of an hourly or metered price takes effect going
 forward: usage before the change bills at the old rate, usage after bills at the
 new one. Roll up the old window before switching the rate if you want a clean
 cutover. See [Usage billing](/usage/usage-billing).
+
+See also: [Build a web hosting company's billing](/recipes/web-hosting-company)
+walks an upgrade and a downgrade through to invoicing.

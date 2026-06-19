@@ -24,6 +24,7 @@ export default defineConfig({
       { text: 'Guide', link: '/' },
       { text: 'Usage', link: '/usage/products-and-prices' },
       { text: 'Reference', link: '/reference/facade' },
+      { text: 'Recipes', link: '/recipes/web-hosting-company' },
       { text: 'GitHub', link: 'https://github.com/Thiritin/meteric' },
     ],
 
@@ -58,6 +59,14 @@ export default defineConfig({
         items: [
           { text: 'Meteric facade', link: '/reference/facade' },
           { text: 'Models', link: '/reference/models' },
+        ],
+      },
+      {
+        text: 'Recipes',
+        items: [
+          { text: 'Web hosting company', link: '/recipes/web-hosting-company' },
+          { text: 'Usage-based cloud', link: '/recipes/usage-based-cloud' },
+          { text: 'Gameserver slots', link: '/recipes/gameserver-slots' },
         ],
       },
     ],

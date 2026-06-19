@@ -148,3 +148,7 @@ have run, in arrears, at the per-unit rate. Report each hour (or batch of hours)
 with `recordUsage()` and roll up the billing window. There is no prepaid value
 to prorate, which is why an [hourly plan change](/usage/plan-changes#hourly-and-metered-plans)
 takes effect going forward rather than being prorated.
+
+See also: [Bill a cloud platform on real usage](/recipes/usage-based-cloud) and
+[Bill a gameserver per slot and per hour](/recipes/gameserver-slots) for
+end-to-end metering examples.

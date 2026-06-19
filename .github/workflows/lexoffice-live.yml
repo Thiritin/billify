@@ -1,0 +1,52 @@
+name: lexoffice-live
+
+# Manual only. Hits the real Lexware Office sandbox API. Set the repo secret
+# LEXOFFICE_TOKEN (and optionally the repo variable LEXOFFICE_BASE_URL) first.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: secret
+          POSTGRES_DB: meteric_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo, pdo_pgsql, pgsql, bcmath
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Run the lexoffice sandbox test
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: meteric_test
+          DB_USERNAME: postgres
+          DB_PASSWORD: secret
+          METERIC_LEXOFFICE_TOKEN: ${{ secrets.LEXOFFICE_TOKEN }}
+          METERIC_LEXOFFICE_BASE_URL: ${{ vars.LEXOFFICE_BASE_URL }}
+        run: vendor/bin/pest --group=live

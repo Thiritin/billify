@@ -1,4 +1,4 @@
-# Meteric
+w# Meteric
 
 [![tests](https://github.com/Thiritin/meteric/actions/workflows/tests.yml/badge.svg)](https://github.com/Thiritin/meteric/actions/workflows/tests.yml)
 [![GitHub tag](https://img.shields.io/github/tag/thiritin/meteric?include_prereleases=&sort=semver&color=blue)](https://github.com/thiritin/meteric/releases/)
@@ -7,8 +7,7 @@
 
 Dynamic billing for Laravel hosting systems. Subscriptions, proration, usage
 metering, addons, commitments, and invoicing on PostgreSQL, built so a charge is
-never billed twice and never lost when your accounting system is down. The design
-borrows from Stripe Billing and WHMCS.
+never billed twice and never lost when your accounting system is down.
 
 ## Documentation
 

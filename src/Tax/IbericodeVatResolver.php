@@ -48,7 +48,7 @@ final class IbericodeVatResolver implements TaxResolver
         }
 
         if (! $this->countries->isCountryCodeInEU($country)) {
-            return TaxResult::none($zero, 'Non-EU — no VAT');
+            return TaxResult::none($zero, 'Non-EU, no VAT');
         }
 
         $rate = $this->rateFor($country, $context);

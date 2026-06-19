@@ -8,6 +8,7 @@ use Brick\Money\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 use Meteric\Enums\InvoiceState;
 
 /**
@@ -74,6 +75,19 @@ class Invoice extends MetericModel
     public function payments(): HasMany
     {
         return $this->hasMany(PaymentAllocation::class, 'invoice_id');
+    }
+
+    /**
+     * Subscriptions this invoice bills, via its charges. Use in an InvoicePaid
+     * listener to resume the right services after payment.
+     *
+     * @return Collection<int, Subscription>
+     */
+    public function subscriptions(): Collection
+    {
+        $ids = $this->charges()->whereNotNull('subscription_id')->distinct()->pluck('subscription_id');
+
+        return Subscription::query()->whereIn('id', $ids)->get();
     }
 
     public function total(): Money

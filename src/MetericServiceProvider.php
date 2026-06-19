@@ -11,6 +11,7 @@ use Ibericode\Vat\Validator;
 use Illuminate\Support\ServiceProvider;
 use Meteric\Anchoring\PeriodPlanner;
 use Meteric\Charges\ChargeAccruer;
+use Meteric\Console\MarkOverdueCommand;
 use Meteric\Console\VatSyncCommand;
 use Meteric\Contracts\Clock;
 use Meteric\Contracts\InvoiceDriver;
@@ -149,7 +150,7 @@ final class MetericServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations' => database_path('migrations'),
             ], 'meteric-migrations');
 
-            $this->commands([VatSyncCommand::class]);
+            $this->commands([VatSyncCommand::class, MarkOverdueCommand::class]);
         }
 
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');

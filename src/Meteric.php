@@ -13,6 +13,10 @@ use Meteric\Contracts\InvoiceDriver;
 use Meteric\Enums\DowngradePolicy;
 use Meteric\Enums\Interval;
 use Meteric\Enums\InvoiceState;
+use Meteric\Events\InvoiceIssued;
+use Meteric\Events\InvoicePaid;
+use Meteric\Events\InvoicePartiallyPaid;
+use Meteric\Events\InvoiceVoided;
 use Meteric\Invoicing\InvoiceDraft;
 use Meteric\Models\Addon;
 use Meteric\Models\BillingAccount;
@@ -97,7 +101,28 @@ final class Meteric
             }
         });
 
-        return Invoice::find($issued->invoiceId);
+        $invoice = Invoice::findOrFail($issued->invoiceId);
+        if ($invoice->due_at === null) {
+            $net = (int) config('meteric.invoice.net_days', 14);
+            $invoice->forceFill(['due_at' => ($invoice->issued_at ?? now())->addDays($net)])->save();
+        }
+
+        InvoiceIssued::dispatch($invoice);
+
+        return $invoice;
+    }
+
+    /** Void an issued, unpaid invoice. */
+    public function voidInvoice(Invoice $invoice): Invoice
+    {
+        if ($invoice->paid_minor > 0) {
+            throw new \LogicException('Cannot void an invoice with payments. Issue a credit note instead.');
+        }
+
+        $invoice->forceFill(['state' => InvoiceState::Void])->save();
+        InvoiceVoided::dispatch($invoice);
+
+        return $invoice;
     }
 
     /**
@@ -117,7 +142,7 @@ final class Meteric
     /** Record an inbound payment against an invoice and advance its state. */
     public function recordPayment(Invoice $invoice, Money $amount, ?string $reference = null): Payment
     {
-        return DB::transaction(function () use ($invoice, $amount, $reference): Payment {
+        $payment = DB::transaction(function () use ($invoice, $amount, $reference): Payment {
             $payment = Payment::create([
                 'account_id' => $invoice->account_id,
                 'amount_minor' => $amount->getMinorAmount()->toInt(),
@@ -140,6 +165,14 @@ final class Meteric
 
             return $payment;
         });
+
+        if ($invoice->state === InvoiceState::Paid) {
+            InvoicePaid::dispatch($invoice, $payment);
+        } else {
+            InvoicePartiallyPaid::dispatch($invoice, $payment);
+        }
+
+        return $payment;
     }
 
     /** Start a read-only quote (checkout rendering). No persistence. */
@@ -178,6 +211,24 @@ final class Meteric
     public function cancel(Subscription $sub, string $at = 'period_end', ?CarbonImmutable $when = null): Subscription
     {
         return app(SubscriptionManager::class)->cancel($sub, $at, $when);
+    }
+
+    /** Suspend billing (state → paused). renew() accrues nothing while paused. */
+    public function pause(Subscription $sub): Subscription
+    {
+        return app(SubscriptionManager::class)->pause($sub);
+    }
+
+    /** Resume billing (state → active) from $at (defaults to now). */
+    public function resume(Subscription $sub, ?CarbonImmutable $at = null): Subscription
+    {
+        return app(SubscriptionManager::class)->resume($sub, $at);
+    }
+
+    /** Mark overdue invoices past_due and fire InvoiceOverdue. Returns count. */
+    public function markOverdue(?CarbonImmutable $at = null): int
+    {
+        return app(SubscriptionManager::class)->markOverdue($at);
     }
 
     /** Book an addon on an item (prorated). Group members are swapped. */

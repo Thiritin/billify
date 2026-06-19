@@ -95,6 +95,9 @@ return [
         ],
         // Mirror canonical record to DB even when a remote driver is primary.
         'mirror_to_database' => env('METERIC_INVOICE_MIRROR', true),
+
+        // Days after issue an invoice is due. meteric:mark-overdue uses this.
+        'net_days' => (int) env('METERIC_INVOICE_NET_DAYS', 14),
     ],
 
     /*

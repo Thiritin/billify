@@ -47,6 +47,7 @@ export default defineConfig({
           { text: 'Commitments', link: '/usage/commitments' },
           { text: 'Invoicing', link: '/usage/invoicing' },
           { text: 'Tax', link: '/usage/tax' },
+          { text: 'Events and hooks', link: '/usage/extending' },
         ],
       },
       {

@@ -14,10 +14,18 @@ use Meteric\Charges\ChargeAccruer;
 use Meteric\Contracts\Clock;
 use Meteric\Enums\ChargeState;
 use Meteric\Enums\DowngradePolicy;
+use Meteric\Enums\InvoiceState;
 use Meteric\Enums\ItemState;
 use Meteric\Enums\LineKind;
 use Meteric\Enums\SubscriptionState;
+use Meteric\Events\InvoiceOverdue;
+use Meteric\Events\SubscriptionCanceled;
+use Meteric\Events\SubscriptionPastDue;
+use Meteric\Events\SubscriptionPaused;
+use Meteric\Events\SubscriptionRenewed;
+use Meteric\Events\SubscriptionResumed;
 use Meteric\Models\Charge;
+use Meteric\Models\Invoice;
 use Meteric\Models\Price;
 use Meteric\Models\Subscription;
 use Meteric\Models\SubscriptionItem;
@@ -44,7 +52,13 @@ final class SubscriptionManager
         $at ??= $this->clock->now();
         $created = [];
 
-        return DB::transaction(function () use ($sub, $at, &$created): array {
+        // Paused/canceled subscriptions accrue nothing. past_due still bills
+        // (contracts keep invoicing and get dunned).
+        if (! $sub->state->isBillable()) {
+            return $created;
+        }
+
+        $created = DB::transaction(function () use ($sub, $at, &$created): array {
             foreach ($sub->items()->where('state', ItemState::Active->value)->get() as $item) {
                 $item->setRelation('subscription', $sub);
                 $created = array_merge($created, $this->renewItem($item, $at));
@@ -54,6 +68,58 @@ final class SubscriptionManager
 
             return $created;
         });
+
+        if ($created !== []) {
+            SubscriptionRenewed::dispatch($sub, $created);
+        }
+
+        return $created;
+    }
+
+    /** Suspend billing: state → paused. While paused, renew() skips this subscription. */
+    public function pause(Subscription $sub): Subscription
+    {
+        $sub->forceFill(['state' => SubscriptionState::Paused])->save();
+        SubscriptionPaused::dispatch($sub);
+
+        return $sub;
+    }
+
+    /** Resume billing: state → active. Renewal continues from the current period. */
+    public function resume(Subscription $sub, ?CarbonImmutable $at = null): Subscription
+    {
+        $sub->forceFill(['state' => SubscriptionState::Active])->save();
+        SubscriptionResumed::dispatch($sub);
+
+        return $sub;
+    }
+
+    /**
+     * Mark issued invoices past their due date (unpaid) as overdue: flips covered
+     * subscriptions to past_due and fires InvoiceOverdue + SubscriptionPastDue.
+     * Schedule meteric:mark-overdue to run this. Returns the invoice count.
+     */
+    public function markOverdue(?CarbonImmutable $at = null): int
+    {
+        $at ??= $this->clock->now();
+        $count = 0;
+
+        Invoice::query()
+            ->whereIn('state', [InvoiceState::Open->value, InvoiceState::PartiallyPaid->value])
+            ->whereNotNull('due_at')
+            ->where('due_at', '<', $at)
+            ->each(function (Invoice $invoice) use (&$count): void {
+                foreach ($invoice->subscriptions() as $sub) {
+                    if (in_array($sub->state, [SubscriptionState::Active, SubscriptionState::Trialing], true)) {
+                        $sub->forceFill(['state' => SubscriptionState::PastDue])->save();
+                    }
+                    SubscriptionPastDue::dispatch($sub, $invoice);
+                }
+                InvoiceOverdue::dispatch($invoice);
+                $count++;
+            });
+
+        return $count;
     }
 
     /** @return list<Charge> */
@@ -155,12 +221,16 @@ final class SubscriptionManager
             return $sub;
         }
 
-        return DB::transaction(function () use ($sub, $when): Subscription {
+        $sub = DB::transaction(function () use ($sub, $when): Subscription {
             $sub->items()->update(['state' => ItemState::Canceled->value, 'ends_at' => $when]);
             $sub->forceFill(['state' => SubscriptionState::Canceled, 'canceled_at' => $when])->save();
 
             return $sub->refresh();
         });
+
+        SubscriptionCanceled::dispatch($sub);
+
+        return $sub;
     }
 
     private function prorationCharge(SubscriptionItem $item, Subscription $sub, LineKind $kind, Money $amount, string $desc): void

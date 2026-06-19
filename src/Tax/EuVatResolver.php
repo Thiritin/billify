@@ -50,7 +50,7 @@ final class EuVatResolver implements TaxResolver
 
         // Non-EU destination: outside EU VAT scope.
         if (! $this->isEu($country)) {
-            return TaxResult::none($zero, 'Non-EU — no VAT');
+            return TaxResult::none($zero, 'Non-EU, no VAT');
         }
 
         $rate = $this->rates[$country] ?? ($this->rates[$merchant] ?? 0.0);

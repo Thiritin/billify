@@ -59,7 +59,7 @@ final class VatSyncCommand extends Command
             }
         }
 
-        $this->info("meteric:vat-sync done — {$changed} rate row(s) written.");
+        $this->info("meteric:vat-sync done: {$changed} rate row(s) written.");
 
         return self::SUCCESS;
     }

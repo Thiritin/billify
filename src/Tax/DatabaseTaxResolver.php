@@ -51,7 +51,7 @@ final class DatabaseTaxResolver implements TaxResolver
         }
 
         if (! $this->registeredFor($country, $date)) {
-            return TaxResult::none($zero, 'Not registered — out of scope');
+            return TaxResult::none($zero, 'Not registered, out of scope');
         }
 
         $rate = $this->rateFor($country, $context->category, $date);

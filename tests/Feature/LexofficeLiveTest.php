@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Brick\Money\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Meteric\Contracts\TaxResolver;
@@ -61,4 +62,24 @@ it('creates a real invoice in the lexoffice sandbox', function () {
     expect($invoice)->not->toBeNull()
         ->and($invoice->external_id)->not->toBeNull()
         ->and($invoice->external_url)->toContain('/v1/invoices/');
+});
+
+it('issues a real credit note in the lexoffice sandbox', function () {
+    $meteric = liveMeteric();
+    $acc = BillingAccount::create([
+        'owner_type' => 'user', 'owner_id' => '2', 'currency' => 'EUR',
+        'tax_profile' => ['name' => 'Meteric Sandbox Test', 'country' => 'DE'],
+    ]);
+    $product = Product::create(['type' => 'vps', 'slug' => 'live-cn-'.uniqid(), 'name' => 'VPS XL', 'pricing_model' => 'fixed']);
+    $price = Price::create([
+        'product_id' => $product->id, 'currency' => 'EUR', 'amount_minor' => 1000,
+        'pricing_model' => 'fixed', 'interval' => 'month', 'interval_count' => 1,
+    ]);
+    $meteric->subscribe()->account($acc)->at(CarbonImmutable::parse('2026-06-01Z'))->add($price, 1, null, label: 'vps-cn.example')->create();
+    $invoice = $meteric->invoicePending($acc);
+
+    $note = $meteric->creditNote($invoice, Money::ofMinor($invoice->total_minor, 'EUR'), 'Sandbox correction');
+
+    // A real lexoffice credit-note document was created.
+    expect($note->external_id)->not->toBeNull();
 });

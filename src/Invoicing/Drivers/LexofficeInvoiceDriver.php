@@ -125,7 +125,7 @@ final class LexofficeInvoiceDriver implements InvoiceDriver
     private function invoiceBody(Invoice $invoice, InvoiceDraft $draft): array
     {
         $profile = $draft->account->tax_profile ?? [];
-        $date = ($invoice->issued_at ?? Carbon::now())->toRfc3339String();
+        $date = ($invoice->issued_at ?? Carbon::now())->format('Y-m-d\TH:i:s.vP');
 
         $lineItems = $invoice->lines
             ->map(fn (InvoiceLine $line): array => $this->lineItem($line, $invoice->currency))
@@ -178,7 +178,7 @@ final class LexofficeInvoiceDriver implements InvoiceDriver
     {
         $invoice = $note->invoice;
         $profile = $invoice?->account?->tax_profile ?? [];
-        $date = ($note->issued_at ?? Carbon::now())->toRfc3339String();
+        $date = ($note->issued_at ?? Carbon::now())->format('Y-m-d\TH:i:s.vP');
         $currency = $note->currency;
 
         return [
@@ -192,7 +192,7 @@ final class LexofficeInvoiceDriver implements InvoiceDriver
                 'name' => $draft->reason ?? 'Credit note',
                 'description' => $draft->reason ?? '',
                 'quantity' => 1.0,
-                'unitName' => null,
+                'unitName' => 'Korrektur',   // Lexware requires a non-blank unit
                 'unitPrice' => [
                     'currency' => $currency,
                     'netAmount' => $this->minorToDecimal($note->amount_minor, $currency),

@@ -1,0 +1,29 @@
+[    1208ms] [WARNING] No `HydrateFallback` element provided to render during initial hydration @ https://app.lexware-sandbox.de/service/agora/544/addons/assets/index-Bj4yFFpy.js:185
+[    1453ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://app.lexware-sandbox.de/bnk/lexbankhub-rest/privilege-management/v100/privilege?t_=1781995096149:0
+[    1459ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://app.lexware-sandbox.de/rdrk-rest/privilegeservice/v100/privilege?t_=1781995096149:0
+[    1461ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://app.lexware-sandbox.de/freebies/medusa-rest/privilege-management/v100/privilege?t_=1781995096149:0
+[    1463ms] [LOG] 
+
+
+  _____ _______ ____  _____  
+ / ____|__   __/ __ \|  __ \ 
+| (___    | | | |  | | |__) |
+ \___ \   | | | |  | |  ___/ 
+ ____) |  | | | |__| | |     
+|_____/   |_|  \____/|_| 
+
+Fügen Sie nie Text aus unbekannten Quellen in diese Konsole ein!
+Es kann dazu führen, dass Fremde Zugriff auf Ihren Account erlangen.
+
+
+ @ https://app.lexware-sandbox.de/cockpit-components/lx-cockpit-components/p-b535e7dd.entry.js:0
+[    1465ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://app.lexware-sandbox.de/karma/karma-rest/privilege-management/v1/privileges?t_=1781995096149:0
+[    1466ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://app.lexware-sandbox.de/hive-rest/privilege-management/v100/privilege?t_=1781995096149:0
+[    1468ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://app.lexware-sandbox.de/inbox-rest/privilege/v1?t_=1781995096149:0
+[    1468ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://app.lexware-sandbox.de/kim/pixie-rest/privilege-management/v100/privilege?t_=1781995096149:0
+[    1469ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://app.lexware-sandbox.de/genai/genai-rest/privilege-management/v100/privilege?t_=1781995096149:0
+[    1470ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://app.lexware-sandbox.de/delphi/delphi-rest/privilege-management/v100/privilege?t_=1781995096149:0
+[    1470ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://app.lexware-sandbox.de/ordex/ordex-rest/privileges?t_=1781995096149:0
+[    1476ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://app.lexware-sandbox.de/artemis/artemis-rest/supportaccessticketservice/v100/supportaccessticket:0
+[    1522ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://api-iam.intercom.io/messenger/web/ping:0
+[    1549ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://api-iam.intercom.io/messenger/web/launcher_settings:0

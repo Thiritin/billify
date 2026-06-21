@@ -54,13 +54,55 @@ locally even when a remote driver is primary. Reach the active driver directly
 with `Meteric::driver()`.
 
 The bundled `lexoffice` driver wraps the `database` driver: it persists the
-canonical local invoice first, then finalizes the document in Lexware Office
-(`POST /v1/invoices?finalize=true`) and stores the returned id and resource URI
-on `external_id` / `external_url`. The local invoice is the source of truth, so
-if the Lexware Office call fails it re-throws without rolling the local invoice
-back. Lexware Office cannot void a finalized invoice, so `void()` refuses one
-that already reached the API and points you at a credit note instead. Set the
-token with `METERIC_LEXOFFICE_TOKEN`.
+canonical local invoice first, then finalizes the document in Lexware Office. The
+local invoice is the source of truth, so if the Lexware Office call fails it
+re-throws without rolling the local invoice back. See
+[Lexware Office (lexoffice)](#lexware-office-lexoffice) below.
+
+## Lexware Office (lexoffice)
+
+To send finalized invoices and credit notes to Lexware Office (formerly
+lexoffice), set the driver and token:
+
+```dotenv
+METERIC_INVOICE_DRIVER=lexoffice
+METERIC_LEXOFFICE_TOKEN=your-api-token
+```
+
+The config block:
+
+```php
+// config/meteric.php
+'invoice' => [
+    'lexoffice' => [
+        'api_token' => env('METERIC_LEXOFFICE_TOKEN'),
+        'base_url'  => env('METERIC_LEXOFFICE_BASE_URL', 'https://api.lexware.io'),
+        'tax_type'  => 'net',   // line amounts are posted net
+        'country'   => 'DE',
+    ],
+],
+```
+
+Production runs against `https://api.lexware.io`. Trial and sandbox keys only
+work against the sandbox gateway at `https://api.lexware-sandbox.io`; generate
+them at `app.lexware-sandbox.de/addons/public-api`.
+
+The driver keeps the canonical invoice locally, then POSTs to Lexware Office and
+stores the returned id and resource URI on `external_id` / `external_url`:
+
+- `issue()` posts to `/v1/invoices?finalize=true`.
+- `creditNote()` posts to `/v1/credit-notes?finalize=true`.
+
+Lexware Office cannot void a finalized invoice, so `void()` refuses one that
+already reached the API and points you at a [credit note](#credit-notes-and-refunds)
+instead.
+
+Lines map to lexoffice line items: the line title becomes `name`, the multi-line
+description stays the description, `quantity` and `unit` (as `unitName`) carry
+over, and amounts post net with a `taxRatePercentage` so lexoffice computes the
+gross. A line `group` becomes a `type:"text"` separator (a heading row), and the
+billed cycle posts as a `serviceperiod` spanning the invoice with an inclusive
+end date.
 
 ## Payments
 
@@ -83,6 +125,40 @@ $invoice->outstanding();  // Money still owed
 $invoice->isPaid();       // bool
 $invoice->isOverdue();    // bool, issued, past due, not paid
 ```
+
+To reverse a payment, issue a [credit note](#credit-notes-and-refunds) and refund
+through your gateway.
+
+## Credit notes and refunds
+
+Meteric does not move money. A credit note is the accounting reversal document.
+The actual refund is your payment gateway's job, the same gateway-agnostic split
+as payments: Meteric records the document, you move the money.
+
+```php
+use Brick\Money\Money;
+
+// Reverse the full net of an invoice; VAT is mirrored automatically.
+$note = Meteric::creditNote($invoice, Money::ofMinor($invoice->subtotal_minor, 'EUR'), 'Customer refund');
+```
+
+`creditNote(Invoice $invoice, Money $amount, ?string $reason = null): CreditNote`
+takes the **net** amount to credit. The driver adds the invoice's tax rate on top
+so the credit note reverses the same VAT the invoice charged, and fires a
+`CreditNoteIssued` event. The `CreditNote` model carries `amount_minor` (net),
+`tax_minor` (mirrored), `currency`, `number`, `reason`, and `state`.
+
+### Void or credit note
+
+`Meteric::voidInvoice($invoice)` only works on an unpaid invoice and refuses once
+any payment exists. Correct a paid or finalized invoice with a credit note
+instead.
+
+With the [Lexware Office driver](#lexware-office-lexoffice), `creditNote()` also
+POSTs a real credit-note document to lexoffice (`POST /v1/credit-notes?finalize=true`)
+and stores its `external_id`. Verified live: a credit note of net 10.00 EUR at
+19% VAT produces gross 11.90 EUR (totalNetAmount 10.00, totalTaxAmount 1.90,
+totalGrossAmount 11.90), mirroring the invoice exactly.
 
 ## Consolidated billing
 

@@ -259,16 +259,24 @@ handling.
 ## What the invoice looks like
 
 A cycle invoice for one VM: a prepaid base fee plus one in-arrears line per
-metered dimension, each summarising the cycle's usage.
+metered dimension, each summarising the cycle's usage. With the
+[Lexware Office driver](/usage/invoicing#lexware-office-lexoffice) the line title
+becomes the lexoffice `name`, the description stays the description, `unit`
+becomes `unitName`, and amounts post as **net** with a tax percentage so
+lexoffice computes the gross. The numbers below use 19% German VAT. The billed
+cycle posts as a service period with an inclusive end (`2026-06-01 to
+2026-06-30`, not `to 2026-07-01`).
 
-| Item | Detail | Qty | Unit | Amount |
-|------|--------|-----|------|--------|
-| Cloud VM - vm-7f3a.example | 2026-06-01 to 2026-06-30 | 1 | month | €20.00 |
-| Cloud VM - vm-7f3a.example | CPU: 312 hours | 312 | hours | €15.60 |
-| Cloud VM - vm-7f3a.example | Traffic: 1500 GB | 28 | blocks | €2.50 |
-| **Total (net)** | | | | **€38.10** |
+| Item | Detail | Qty | Unit | Net | VAT | Gross |
+|------|--------|-----|------|-----|-----|-------|
+| Cloud VM - vm-7f3a.example | 2026-06-01 to 2026-06-30 | 1 | month | €20.00 | €3.80 | €23.80 |
+| Cloud VM - vm-7f3a.example | CPU: 312 hours | 312 | hours | €15.60 | €2.96 | €18.56 |
+| Cloud VM - vm-7f3a.example | Traffic: 1500 GB | 28 | blocks | €2.50 | €0.48 | €2.98 |
+| **Subtotal (net)** | | | | **€38.10** | | |
+| **VAT (19%)** | | | | | **€7.24** | |
+| **Total (gross)** | | | | | | **€45.34** |
 
 The usage lines are one per dimension, already summed for the cycle. The total
-consumed sits in `line->description` (multi-line, with the period) and in the
-charge metadata (`used`, `unit`, `overage`, `block_size`), so `line->usedSummary()`
-gives you "1500 GB" for display.
+consumed sits in `line->description` (multi-line, with the inclusive period) and
+in the charge metadata (`used`, `unit`, `overage`, `block_size`), so
+`line->usedSummary()` gives you "1500 GB" for display.

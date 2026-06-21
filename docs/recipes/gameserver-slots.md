@@ -178,13 +178,21 @@ the rate for a clean cutover. See [Plan changes](/usage/plan-changes#hourly-and-
 
 ## What the invoice looks like
 
-A monthly invoice for a 16-slot server with metered runtime.
+A monthly invoice for a 16-slot server with metered runtime. With the
+[Lexware Office driver](/usage/invoicing#lexware-office-lexoffice) the line title
+becomes the lexoffice `name`, the description stays the description, `unit`
+becomes `unitName`, and amounts post as **net** with a tax percentage so
+lexoffice computes the gross. The numbers below use 19% German VAT. The billed
+cycle posts as a service period with an inclusive end (`2026-06-01 to
+2026-06-30`, not `to 2026-07-01`).
 
-| Item | Detail | Qty | Unit | Amount |
-|------|--------|-----|------|--------|
-| Gameserver - mc-eu-04.example | 2026-06-01 to 2026-06-30 | 16 | slots | €40.00 |
-| Gameserver - mc-eu-04.example | Runtime: 540 hours | 540 | hours | €5.40 |
-| **Total (net)** | | | | **€45.40** |
+| Item | Detail | Qty | Unit | Net | VAT | Gross |
+|------|--------|-----|------|-----|-----|-------|
+| Gameserver - mc-eu-04.example | 2026-06-01 to 2026-06-30 | 16 | slots | €40.00 | €7.60 | €47.60 |
+| Gameserver - mc-eu-04.example | Runtime: 540 hours | 540 | hours | €5.40 | €1.03 | €6.43 |
+| **Subtotal (net)** | | | | **€45.40** | | |
+| **VAT (19%)** | | | | | **€8.63** | |
+| **Total (gross)** | | | | | | **€54.03** |
 
 The slot line is priced through the volume tiers; the runtime line is the rolled
 up hourly usage for the cycle.

@@ -94,6 +94,17 @@ invoice, itemized per account.
 
 Record an inbound payment against an invoice and advance its state.
 
+#### `creditNote(Invoice $invoice, Money $amount, ?string $reason = null): CreditNote`
+
+Issue a credit note reversing `$amount` (net) of an invoice. The driver mirrors
+the invoice's tax on top and fires `CreditNoteIssued`. Meteric does not refund;
+your gateway does. See [Credit notes and refunds](/usage/invoicing#credit-notes-and-refunds).
+
+#### `voidInvoice(Invoice $invoice): Invoice`
+
+Void an unpaid invoice. Refuses once any payment exists; correct a paid or
+finalized invoice with a credit note instead.
+
 #### `driver(): InvoiceDriver`
 
 The bound invoice driver instance.

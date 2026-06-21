@@ -171,4 +171,4 @@ The two tables behind the database tax driver. See [Tax](/usage/tax).
 
 - **Coupon (`meteric_coupons`):** `code`, `type`, `value`, `value_minor`, `max_redemptions`, `redeemed_count`, `valid_from`, `valid_to`. Helpers: `isValidAt(CarbonImmutable $at): bool`, `discountFor(Money $base): Money`.
 - **Discount (`meteric_discounts`):** `remaining_cycles`; relationships `coupon()`, `target()` (morph).
-- **CreditNote (`meteric_credit_notes`):** `state`, `amount_minor`, `tax_minor`, `currency`; relationship `invoice()`; helper `amount(): Money`.
+- **CreditNote (`meteric_credit_notes`):** `state`, `number`, `reason`, `amount_minor` (net), `tax_minor` (mirrors the invoice VAT), `currency`; relationship `invoice()`; helper `amount(): Money`. See [Credit notes and refunds](/usage/invoicing#credit-notes-and-refunds).

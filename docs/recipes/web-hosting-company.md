@@ -383,17 +383,36 @@ back-billed for the suspended gap. The full event list is in
 ## What the invoice looks like
 
 A first invoice for a Pro plan with a setup fee, a storage addon, and a domain
-registration renders to these lines. Each line carries a `title`, a `unit`, the
-`covers` period, and the amount.
+registration. With the [Lexware Office driver](/usage/invoicing#lexware-office-lexoffice)
+the line title becomes the lexoffice `name`, the multi-line description stays the
+description, `unit` becomes `unitName`, the amounts post as **net** with a tax
+percentage, and lexoffice computes the gross. The numbers below use 19% German
+VAT. The billed cycle posts as a service period spanning the invoice, with an
+inclusive end date (June is `2026-06-01 to 2026-06-30`, not `to 2026-07-01`).
 
-| Item | Period | Qty | Unit | Amount |
-|------|--------|-----|------|--------|
-| Webhosting Pro - alice.example | 2026-06-01 to 2026-06-30 | 1 | month | €9.99 |
-| Webhosting Pro - alice.example | one-time | 1 | | €5.00 |
-| Extra storage | 2026-06-01 to 2026-06-30 | 1 | month | €2.00 |
-| example.com | registration | 1 | year | €12.00 |
-| **Total (net)** | | | | **€28.99** |
+Pass `group:` on a line to split the invoice into sections. Each distinct group
+posts a lexoffice `type:"text"` heading row above its lines:
 
-`line->title` is the name, `line->description` holds the detail (the period, on
-its own line), `line->unit` is the quantity unit, and `line->coversLabel()`
-formats the period. Tax is added per line by the [tax resolver](/usage/tax).
+```php
+Meteric::subscribe($user)
+    ->add($pro, qty: 1, resource: $hostingAccount, group: 'Hosting')
+    ->add($register, qty: 1, resource: $domainRecord, label: 'example.com', group: 'Domains')
+    ->create();
+```
+
+| Item | Detail | Qty | Unit | Net | VAT | Gross |
+|------|--------|-----|------|-----|-----|-------|
+| **Hosting** | | | | | | |
+| Webhosting Pro - alice.example | 2026-06-01 to 2026-06-30 | 1 | month | €9.99 | €1.90 | €11.89 |
+| Webhosting Pro - alice.example | Setup fee | 1 | | €5.00 | €0.95 | €5.95 |
+| Extra storage - alice.example | 2026-06-01 to 2026-06-30 | 1 | month | €2.00 | €0.38 | €2.38 |
+| **Domains** | | | | | | |
+| example.com | Registration | 1 | year | €12.00 | €2.28 | €14.28 |
+| **Subtotal (net)** | | | | **€28.99** | | |
+| **VAT (19%)** | | | | | **€5.51** | |
+| **Total (gross)** | | | | | | **€34.50** |
+
+`line->title` is the lexoffice `name`, `line->description` holds the detail (the
+period, on its own line), `line->unit` is the `unitName`, and
+`line->coversLabel()` formats the inclusive service period. Tax is added per line
+by the [tax resolver](/usage/tax).

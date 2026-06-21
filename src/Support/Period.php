@@ -81,9 +81,19 @@ final class Period
         return [$this->start->toIso8601String(), $this->end->toIso8601String()];
     }
 
-    /** Human label like "2026-06-01 to 2026-07-01". */
+    /**
+     * Inclusive last moment of the period. Internally periods are half-open
+     * [start, end), so a June monthly cycle ends at 2026-07-01T00:00:00; for
+     * display that is the last second of 2026-06-30.
+     */
+    public function inclusiveEnd(): CarbonImmutable
+    {
+        return $this->end->subSecond();
+    }
+
+    /** Human label like "2026-06-01 to 2026-06-30" (inclusive end). */
     public function label(string $format = 'Y-m-d'): string
     {
-        return $this->start->format($format).' to '.$this->end->format($format);
+        return $this->start->format($format).' to '.$this->inclusiveEnd()->format($format);
     }
 }

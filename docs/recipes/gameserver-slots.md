@@ -182,7 +182,7 @@ A monthly invoice for a 16-slot server with metered runtime.
 
 | Item | Detail | Qty | Unit | Amount |
 |------|--------|-----|------|--------|
-| Gameserver - mc-eu-04.example | 2026-06-01 to 2026-07-01 | 16 | slots | €40.00 |
+| Gameserver - mc-eu-04.example | 2026-06-01 to 2026-06-30 | 16 | slots | €40.00 |
 | Gameserver - mc-eu-04.example | Runtime: 540 hours | 540 | hours | €5.40 |
 | **Total (net)** | | | | **€45.40** |
 

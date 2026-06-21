@@ -156,7 +156,7 @@ it('groups lines under text separators and spans a service period', function () 
             // The service period spans the billed range.
             && $body['shippingConditions']['shippingType'] === 'serviceperiod'
             && str_starts_with($body['shippingConditions']['shippingDate'], '2026-06-01')
-            && str_starts_with($body['shippingConditions']['shippingEndDate'], '2026-07-01');
+            && str_starts_with($body['shippingConditions']['shippingEndDate'], '2026-06-30');
     });
 });
 

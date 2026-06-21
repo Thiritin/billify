@@ -195,7 +195,7 @@ final class LexofficeInvoiceDriver implements InvoiceDriver
         }
 
         $start = $periods->map(fn ($p) => $p->start)->min();
-        $end = $periods->map(fn ($p) => $p->end)->max();
+        $end = $periods->map(fn ($p) => $p->inclusiveEnd())->max();   // last moment of service, not the next period's start
 
         return [
             'shippingDate' => $start->format('Y-m-d\TH:i:s.vP'),

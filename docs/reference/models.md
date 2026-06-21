@@ -97,7 +97,7 @@ can have a parent for consolidated billing.
 - **Relationships:** `invoice()`, `charge()`.
 - **Helpers:**
   - `gross(): Money`: amount + tax.
-  - `coversLabel(string $format = 'Y-m-d'): ?string`: the service period as text, e.g. `2026-06-01 to 2026-07-01`.
+  - `coversLabel(string $format = 'Y-m-d'): ?string`: the service period as text, e.g. `2026-06-01 to 2026-06-30`.
   - `usedSummary(): ?string`: for usage lines, the total consumed and unit, e.g. `1500 GB` (from the rollup metadata).
 
 ## Payment / PaymentAllocation

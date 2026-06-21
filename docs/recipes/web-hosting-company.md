@@ -388,9 +388,9 @@ registration renders to these lines. Each line carries a `title`, a `unit`, the
 
 | Item | Period | Qty | Unit | Amount |
 |------|--------|-----|------|--------|
-| Webhosting Pro - alice.example | 2026-06-01 to 2026-07-01 | 1 | month | €9.99 |
+| Webhosting Pro - alice.example | 2026-06-01 to 2026-06-30 | 1 | month | €9.99 |
 | Webhosting Pro - alice.example | one-time | 1 | | €5.00 |
-| Extra storage | 2026-06-01 to 2026-07-01 | 1 | month | €2.00 |
+| Extra storage | 2026-06-01 to 2026-06-30 | 1 | month | €2.00 |
 | example.com | registration | 1 | year | €12.00 |
 | **Total (net)** | | | | **€28.99** |
 

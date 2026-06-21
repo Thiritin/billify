@@ -68,14 +68,10 @@ class InvoiceLine extends MetericModel
         return Money::ofMinor($this->amount_minor + $this->tax_minor, $this->currency);
     }
 
-    /** The service period as a string, e.g. "2026-06-01 to 2026-07-01". Null for one-off lines. */
+    /** The service period as a string, e.g. "2026-06-01 to 2026-06-30" (inclusive end). Null for one-off lines. */
     public function coversLabel(string $format = 'Y-m-d'): ?string
     {
-        if ($this->covers === null) {
-            return null;
-        }
-
-        return $this->covers->start->format($format).' to '.$this->covers->end->format($format);
+        return $this->covers?->label($format);
     }
 
     /**

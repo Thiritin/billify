@@ -184,7 +184,7 @@ final class SubscriptionManager
      * Switch an item's plan. Direction is detected by price. Each direction takes
      * a policy ($upgrade / $downgrade overrides the product default):
      *
-     *  Upgrade   prorate_now: credit the unused old, charge the prorated new (default).
+     *  Upgrade   prorate: credit the unused old, charge the prorated new (default).
      *            defer: swap at the next renewal, keep the current plan until then.
      *  Downgrade defer: keep the tier until the period ends, then renew lower.
      *            discard: swap now, unused value forfeited. credit: swap now, credit the
@@ -199,9 +199,9 @@ final class SubscriptionManager
         $newFull = $newPrice->amountFor($qty);
 
         if ($newFull->isGreaterThan($oldFull)) {
-            return match ($upgrade ?? UpgradePolicy::ProrateNow) {
+            return match ($upgrade ?? UpgradePolicy::Prorate) {
                 UpgradePolicy::Defer => $this->deferChange($item, $newPrice),
-                UpgradePolicy::ProrateNow => $this->prorateChange($item, $newPrice, $at),
+                UpgradePolicy::Prorate => $this->prorateChange($item, $newPrice, $at),
             };
         }
 
@@ -270,7 +270,7 @@ final class SubscriptionManager
         return $item;
     }
 
-    /** Prorate_now upgrade: credit the unused old and charge the prorated new. */
+    /** Prorate upgrade: credit the unused old and charge the prorated new. */
     private function prorateChange(SubscriptionItem $item, Price $newPrice, CarbonImmutable $at): SubscriptionItem
     {
         return DB::transaction(function () use ($item, $newPrice, $at): SubscriptionItem {

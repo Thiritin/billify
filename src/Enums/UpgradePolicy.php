@@ -9,6 +9,6 @@ namespace Meteric\Enums;
  */
 enum UpgradePolicy: string
 {
-    case ProrateNow = 'prorate_now';  // credit the unused old, charge the prorated new, for the rest of the cycle
+    case Prorate = 'prorate';  // credit the unused old, charge the prorated new, for the rest of the cycle
     case Defer = 'defer';             // swap at the next renewal, keep the current plan until then
 }

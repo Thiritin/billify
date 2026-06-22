@@ -32,7 +32,7 @@ and how it is billed.
 
 | Case | Effect |
 |------|--------|
-| `ProrateNow` (default) | Credit the unused portion of the old plan, charge the new plan prorated over the rest of the cycle. The item moves to the new price right away. |
+| `Prorate` (default) | Credit the unused portion of the old plan, charge the new plan prorated over the rest of the cycle. The item moves to the new price right away. |
 | `Defer` | Swap at the next renewal. Keep the current plan until then. No money moves mid-cycle. |
 
 The default prorated upgrade settles the difference for the rest of the period

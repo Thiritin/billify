@@ -29,6 +29,18 @@ The driver call is the failure boundary. A retried run reuses a deterministic
 batch key, so retrying after a partial failure does not create a second invoice
 for the same charges.
 
+## An invoice is never negative
+
+An invoice total floors at zero. Credits ride along as itemized negative charge
+lines, each carrying the product name of what it credits, never a single
+summarized "credit" line. The negative lines offset the positive charges down to
+zero, no further.
+
+If the pending credits outweigh the charges, `invoicePending()` issues nothing
+and returns `null`. The credit lines stay `pending` and reduce a later invoice
+once new charges land. Money going back to a customer is a credit note plus a
+host listener, not a negative invoice.
+
 ## Drivers
 
 The invoice driver is swappable. The default `database` driver writes the

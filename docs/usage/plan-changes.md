@@ -63,7 +63,8 @@ plan takes effect and what happens to the unused value of the higher plan.
 |------|--------|
 | `Defer` (default for contracts) | Keep the current tier until the paid period ends, then renew lower. The change is stored as a pending change and applied at renewal. |
 | `Discard` | Swap to the lower plan immediately. The unused value of the higher plan is forfeited, no credit, no refund. |
-| `Credit` | Swap immediately and credit the unused old value as a pending negative charge that lands on the next invoice. |
+| `Credit` | Swap immediately and credit the unused old value as a pending negative charge that lands on the next invoice. No money moves, no document. |
+| `Refund` | Swap immediately and issue a credit note for the unused value of the invoice that billed the current period. A `CreditNoteIssued` listener in your app performs the actual refund. |
 
 ```php
 use Meteric\Enums\DowngradePolicy;
@@ -73,7 +74,22 @@ Meteric::changePlan($item, $smallerPrice, DowngradePolicy::Defer);
 
 // Switch immediately, credit the unused value of the higher plan.
 Meteric::changePlan($item, $smallerPrice, DowngradePolicy::Credit);
+
+// Switch immediately, issue a credit note for the unused value.
+Meteric::changePlan($item, $smallerPrice, DowngradePolicy::Refund);
 ```
+
+`Credit` and `Refund` differ in where the value goes. `Credit` writes a pending
+negative charge that reduces a later invoice: no money moves and no document is
+produced. `Refund` issues a credit note against the invoice that billed the
+current period, and a `CreditNoteIssued` listener in your app moves the money
+through your gateway or your own credit system. With nothing invoiced yet there
+is no invoice to credit, so `Refund` falls back to a pending credit line like
+`Credit`.
+
+Refunds and any credit-balance or Guthaben handling live in your app, driven by
+events and hooks. This package issues the documents and fires the events; it does
+not return money or track a credit balance.
 
 When you do not pass a downgrade policy, Meteric uses the product's policy
 (`config['downgrade']`), which itself defaults to `Defer`. The deferred change is
@@ -88,9 +104,10 @@ $item->pending_change;     // ['price_id' => ..., 'apply_at' => ...]
 ## Charges, not credit notes
 
 Every proration credit and charge is a `pending` charge on the account. They
-appear on the next invoice. `changePlan()` issues no invoice and no credit-note
-document on its own. A credit note is only for reversing an invoice that is
-already issued or paid. See [Credit notes and
+appear on the next invoice. Under every policy except `Refund`, `changePlan()`
+issues no invoice and no credit-note document on its own. `Refund` is the one
+exception: it issues a credit note against the invoice that billed the current
+period and fires `CreditNoteIssued`. See [Credit notes and
 refunds](/usage/invoicing#credit-notes-and-refunds).
 
 ## Hourly and metered plans

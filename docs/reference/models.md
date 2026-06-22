@@ -38,10 +38,9 @@ helper methods you actually call.
 `meteric_billing_accounts`: who is billed. Owns subscriptions and invoices, and
 can have a parent for consolidated billing.
 
-- **Columns:** `parent_id`, `owner_type` / `owner_id` (morph), `currency`, `tax_profile` (array), `balance_minor`.
+- **Columns:** `parent_id`, `owner_type` / `owner_id` (morph), `currency`, `tax_profile` (array).
 - **Relationships:** `owner()` (morph), `parent()`, `children()`, `subscriptions()`, `invoices()`.
 - **Helpers:**
-  - `creditBalance(): Money`, `applyCredit(Money $amount): void`.
   - `taxContext(bool $inclusive = false): TaxContext`: from the `tax_profile`.
   - `payerScopeIds(): array`: self plus children, for consolidated billing.
 

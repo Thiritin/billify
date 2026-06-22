@@ -49,4 +49,23 @@ class ProductOption extends MetericModel
     {
         return $this->hasMany(ProductOptionValue::class, 'option_id')->orderBy('sort');
     }
+
+    /**
+     * Render-ready data for a form control (dropdown/quantity/toggle): the option
+     * meta plus each value priced at $qty.
+     *
+     * @return array<string,mixed>
+     */
+    public function toDisplay(float $qty = 1): array
+    {
+        return [
+            'key' => $this->key,
+            'label' => $this->label ?? $this->key,
+            'type' => $this->type->value,
+            'required' => $this->required,
+            'min' => $this->min_qty,
+            'max' => $this->max_qty,
+            'values' => $this->values->map(fn (ProductOptionValue $v): array => $v->toDisplay($qty))->all(),
+        ];
+    }
 }

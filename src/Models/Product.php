@@ -59,6 +59,20 @@ class Product extends MetericModel
         return $this->hasMany(ProductOption::class, 'product_id')->orderBy('sort');
     }
 
+    /**
+     * The configurable-option catalog as render-ready data for a checkout or
+     * upgrade/downgrade form: every option with its values priced at $qty. JSON
+     * encode it straight to the frontend.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function optionCatalog(float $qty = 1): array
+    {
+        return $this->options()->with('values.price')->get()
+            ->map(fn (ProductOption $o): array => $o->toDisplay($qty))
+            ->all();
+    }
+
     public function priceFor(string $currency, PricePurpose $purpose = PricePurpose::Recurring): ?Price
     {
         return $this->prices()

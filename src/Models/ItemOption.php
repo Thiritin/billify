@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Meteric\Models;
 
+use Brick\Money\Money;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Meteric\Enums\OptionType;
 
@@ -47,5 +48,30 @@ class ItemOption extends MetericModel
     public function boolValue(): bool
     {
         return filter_var($this->value, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /** The recurring charge this option adds per period (free when it has no price). */
+    public function amount(): ?Money
+    {
+        return $this->price?->amountForQuantity((float) $this->quantity);
+    }
+
+    /**
+     * Render-ready data for a service page: the current selection and its cost.
+     *
+     * @return array<string,mixed>
+     */
+    public function toDisplay(): array
+    {
+        $amount = $this->amount();
+
+        return [
+            'key' => $this->key,
+            'value' => $this->value,
+            'quantity' => $this->quantity,
+            'amount_minor' => $amount?->getMinorAmount()->toInt() ?? 0,
+            'amount' => $amount !== null ? (string) $amount->getAmount() : '0',
+            'currency' => $this->price?->currency,
+        ];
     }
 }

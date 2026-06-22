@@ -174,6 +174,43 @@ it('bills a renewal option with its free allowance applied', function () {
     expect($july->amount_minor)->toBe(750);
 });
 
+it('returns a render-ready option catalog for a form', function () {
+    $base = optBasePrice();
+    $product = Product::find($base->product_id);
+    $option = ProductOption::create([
+        'product_id' => $base->product_id, 'key' => 'ips', 'label' => 'Extra IPs',
+        'type' => OptionType::Quantity->value, 'min_qty' => 1, 'max_qty' => 256,
+    ]);
+    ProductOptionValue::create([
+        'option_id' => $option->id, 'value' => 'ipv4', 'label' => 'IPv4',
+        'price_id' => optVolumePrice($base->product_id)->id,
+    ]);
+
+    $catalog = $product->optionCatalog(60);
+
+    expect($catalog)->toHaveCount(1)
+        ->and($catalog[0]['key'])->toBe('ips')
+        ->and($catalog[0]['type'])->toBe('quantity')
+        ->and($catalog[0]['max'])->toBe(256.0)
+        ->and($catalog[0]['values'][0]['value'])->toBe('ipv4')
+        ->and($catalog[0]['values'][0]['pricing_model'])->toBe('volume')
+        ->and($catalog[0]['values'][0]['amount_minor'])->toBe(9000);  // 60 at the 11+ tier (1.50) = 90.00
+});
+
+it('summarises a selected option for a service page', function () {
+    $acc = optAccount();
+    $base = optBasePrice();
+    $sub = optSub($acc, $base);
+    $item = $sub->items()->first();
+    Meteric::setOption($item, 'slots', '4', OptionType::Quantity->value, optVolumePrice($base->product_id), 4, CarbonImmutable::parse('2026-06-01Z'));
+
+    $display = $item->options()->where('key', 'slots')->first()->toDisplay();
+
+    expect($display['quantity'])->toBe(4.0)
+        ->and($display['amount_minor'])->toBe(800)
+        ->and($display['currency'])->toBe('EUR');
+});
+
 it('re-bills an addon every renewal', function () {
     $acc = optAccount();
     $base = optBasePrice();

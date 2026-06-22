@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Meteric\Enums\DowngradePolicy;
+use Meteric\Enums\LineKind;
 use Meteric\Enums\SubscriptionState;
 use Meteric\Enums\UpgradePolicy;
 use Meteric\Facades\Meteric;
@@ -137,6 +139,33 @@ it('discards a downgrade immediately with no refund (prepaid)', function () {
     // Switched now, no credit/refund — only the original €30 charge exists.
     expect($item->fresh()->price_id)->toBe($small->id)
         ->and(Charge::where('subscription_id', $sub->id)->count())->toBe(1);
+});
+
+it('never issues a negative invoice; credits wait for charges', function () {
+    $acc = freshAccount();
+    Charge::create([
+        'account_id' => $acc->id, 'origin_type' => 'manual', 'origin_id' => (string) Str::uuid(),
+        'kind' => LineKind::Credit->value, 'billing_mode' => 'in_advance', 'state' => 'pending',
+        'title' => 'VPS', 'description' => 'Unused VPS', 'quantity' => 1, 'amount_minor' => -500,
+        'currency' => 'EUR', 'idempotency_key' => (string) Str::uuid(),
+    ]);
+
+    // A lone credit must not produce a negative invoice.
+    expect(Meteric::invoicePending($acc))->toBeNull();
+
+    // A charge that outweighs it lets the credit land as a negative line.
+    Charge::create([
+        'account_id' => $acc->id, 'origin_type' => 'manual', 'origin_id' => (string) Str::uuid(),
+        'kind' => LineKind::Recurring->value, 'billing_mode' => 'in_advance', 'state' => 'pending',
+        'title' => 'VPS', 'description' => 'VPS', 'quantity' => 1, 'amount_minor' => 2000,
+        'currency' => 'EUR', 'idempotency_key' => (string) Str::uuid(),
+    ]);
+
+    $invoice = Meteric::invoicePending($acc);
+    expect($invoice)->not->toBeNull()
+        ->and($invoice->subtotal_minor)->toBe(1500)   // 2000 charge minus 500 credit
+        ->and($invoice->total_minor)->toBeGreaterThan(0)
+        ->and($invoice->lines()->count())->toBe(2);  // both lines itemized, not summarized
 });
 
 it('defers an upgrade to the next renewal', function () {

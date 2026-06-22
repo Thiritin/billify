@@ -12,4 +12,5 @@ enum DowngradePolicy: string
     case Defer = 'defer';      // keep the current tier until the paid period ends, then renew lower (contracts)
     case Discard = 'discard';  // switch to the lower plan immediately; unused value is forfeited (prepaid)
     case Credit = 'credit';    // switch immediately and credit the unused old value as a pending charge on the next invoice
+    case Refund = 'refund';    // switch immediately and issue a credit note for the unused value (a refund document; the host moves the money)
 }

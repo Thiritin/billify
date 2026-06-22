@@ -23,7 +23,6 @@ return new class extends Migration
             $table->string('owner_id');
             $table->char('currency', 3);
             $table->jsonb('tax_profile')->default(DB::raw("'{}'::jsonb"));
-            $table->bigInteger('balance_minor')->default(0);
             $table->jsonb('metadata')->default(DB::raw("'{}'::jsonb"));
             $table->timestampsTz();
 

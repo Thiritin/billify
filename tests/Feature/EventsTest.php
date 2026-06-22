@@ -6,6 +6,7 @@ use Brick\Money\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Meteric\Enums\DowngradePolicy;
 use Meteric\Enums\SubscriptionState;
 use Meteric\Events\CreditNoteIssued;
 use Meteric\Events\InvoiceOverdue;
@@ -99,6 +100,25 @@ it('issues a credit note against an invoice (the refund record)', function () {
     expect($note->amount_minor)->toBe($invoice->total_minor)
         ->and($note->invoice_id)->toBe($invoice->id)
         ->and($invoice->fresh()->creditNotes)->toHaveCount(1);
+    Event::assertDispatched(CreditNoteIssued::class);
+});
+
+it('refund downgrade issues a credit note against the billed invoice', function () {
+    Event::fake([CreditNoteIssued::class]);
+    $acc = eventsAccount();
+    $large = eventsPlan(3000);
+    $small = eventsPlan(1000);
+    $sub = Meteric::subscribe()->account($acc)->at(CarbonImmutable::parse('2026-06-01Z'))->add($large, 1)->create();
+    $invoice = Meteric::invoicePending($acc);   // bill June at the large plan
+
+    $item = $sub->items->first();
+    $item->setRelation('subscription', $sub)->setRelation('price', $large);
+    Meteric::changePlan($item, $small, DowngradePolicy::Refund, at: CarbonImmutable::parse('2026-06-16Z'));
+
+    $note = $invoice->fresh()->creditNotes()->first();
+    expect($item->fresh()->price_id)->toBe($small->id)
+        ->and($note)->not->toBeNull()
+        ->and($note->amount_minor)->toBe(1500);   // half of the 3000 large plan
     Event::assertDispatched(CreditNoteIssued::class);
 });
 

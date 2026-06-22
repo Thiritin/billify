@@ -25,6 +25,7 @@ use Meteric\Events\SubscriptionPastDue;
 use Meteric\Events\SubscriptionPaused;
 use Meteric\Events\SubscriptionRenewed;
 use Meteric\Events\SubscriptionResumed;
+use Meteric\Meteric;
 use Meteric\Models\Charge;
 use Meteric\Models\Invoice;
 use Meteric\Models\Price;
@@ -187,7 +188,8 @@ final class SubscriptionManager
      *            defer: swap at the next renewal. full_now: swap and charge the full new plan.
      *  Downgrade defer: keep the tier until the period ends, then renew lower.
      *            discard: swap now, unused value forfeited. credit: swap now, credit the
-     *            unused old as a pending charge on the next invoice.
+     *            unused old as a pending charge on the next invoice. refund: swap now and
+     *            issue a credit note for the unused value (a host listener moves the money).
      */
     public function changePlan(SubscriptionItem $item, Price $newPrice, ?DowngradePolicy $downgrade = null, ?UpgradePolicy $upgrade = null, ?CarbonImmutable $at = null): SubscriptionItem
     {
@@ -207,8 +209,58 @@ final class SubscriptionManager
         return match ($downgrade ?? $item->product?->downgradePolicy() ?? DowngradePolicy::Defer) {
             DowngradePolicy::Defer => $this->deferChange($item, $newPrice),
             DowngradePolicy::Credit => $this->switchNow($item, $newPrice, $at, creditOld: true),
+            DowngradePolicy::Refund => $this->refundDowngrade($item, $newPrice, $at),
             DowngradePolicy::Discard => $this->switchNow($item, $newPrice, $at),
         };
+    }
+
+    /**
+     * Refund downgrade: swap now and issue a credit note for the unused value of
+     * the invoice that billed the current period (a refund document; a host
+     * listener moves the money). With nothing invoiced yet there is nothing to
+     * refund, so the unused value becomes a pending credit on the next invoice.
+     */
+    private function refundDowngrade(SubscriptionItem $item, Price $newPrice, CarbonImmutable $at): SubscriptionItem
+    {
+        return DB::transaction(function () use ($item, $newPrice, $at): SubscriptionItem {
+            $sub = $item->subscription;
+            $period = $item->current_period;
+
+            if ($period !== null) {
+                $unused = $this->prorator->for($period, $at, $item->price->amountFor((float) $item->quantity))->amount();
+
+                if ($unused->isPositive()) {
+                    $invoice = $this->periodInvoice($item);
+                    if ($invoice !== null) {
+                        app(Meteric::class)->creditNote($invoice, $unused, 'Downgrade refund: '.($item->price->product->name ?? 'plan'));
+                    } else {
+                        $this->prorationCharge($item, $sub, LineKind::Credit, $unused->negated(), 'Unused '.($item->price->product->name ?? 'plan'));
+                    }
+                }
+            }
+
+            $item->forceFill(['price_id' => $newPrice->id, 'product_id' => $newPrice->product_id])->save();
+
+            return $item->refresh();
+        });
+    }
+
+    /** The issued invoice that billed this item's current period, if any. */
+    private function periodInvoice(SubscriptionItem $item): ?Invoice
+    {
+        if ($item->current_period === null) {
+            return null;
+        }
+
+        $invoiceId = Charge::query()
+            ->where('origin_type', 'subscription_item')
+            ->where('origin_id', $item->id)
+            ->whereNotNull('invoice_id')
+            ->whereRaw('covers && ?::tstzrange', [$item->current_period->toRange()])
+            ->latest('created_at')
+            ->value('invoice_id');
+
+        return $invoiceId !== null ? Invoice::find($invoiceId) : null;
     }
 
     /** Queue the swap for the next renewal boundary; no money moves mid-cycle. */
@@ -305,6 +357,7 @@ final class SubscriptionManager
             'group' => $item->group,
             'description' => $desc,
             'quantity' => $item->quantity,
+            'unit' => $item->price->interval?->value,
             'unit_minor' => $amount->getMinorAmount()->toInt(),
             'amount_minor' => $amount->getMinorAmount()->toInt(),
             'currency' => $sub->currency,

@@ -89,6 +89,14 @@ final class Meteric
             return null;
         }
 
+        // An invoice is never negative. If pending credits outweigh the charges,
+        // hold everything: the credit lines stay pending and reduce a later
+        // invoice once new charges land. A refund (money back) is a credit note,
+        // not a negative invoice.
+        if ((int) $charges->sum('amount_minor') < 0) {
+            return null;
+        }
+
         $draft = new InvoiceDraft(
             account: $account,
             currency: $currency,

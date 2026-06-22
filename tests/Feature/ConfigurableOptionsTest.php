@@ -138,6 +138,42 @@ it('selects a catalog option value through chooseOption with volume pricing', fu
         ->and($item->options()->where('key', 'ips')->first()->max_qty)->toBe(256.0);
 });
 
+it('applies usage-style allowance, blocks and cap to option pricing', function () {
+    // 2 units free, then 1.00 each: 5 units bills 3.00.
+    $allowance = Price::make(['currency' => 'EUR', 'pricing_model' => 'fixed', 'amount_minor' => 100, 'included_qty' => 2]);
+    expect($allowance->amountForQuantity(5)->getMinorAmount()->toInt())->toBe(300);
+
+    // 5.00 per block of 50: 120 units rounds up to 3 blocks = 15.00.
+    $blocks = Price::make(['currency' => 'EUR', 'pricing_model' => 'fixed', 'amount_minor' => 500, 'block_size' => 50]);
+    expect($blocks->amountForQuantity(120)->getMinorAmount()->toInt())->toBe(1500);
+
+    // 1.00 each but capped at 50.00: 100 units would be 100.00, capped to 50.00.
+    $capped = Price::make(['currency' => 'EUR', 'pricing_model' => 'fixed', 'amount_minor' => 100, 'cap_minor' => 5000]);
+    expect($capped->amountForQuantity(100)->getMinorAmount()->toInt())->toBe(5000);
+});
+
+it('bills a renewal option with its free allowance applied', function () {
+    $acc = optAccount();
+    $base = optBasePrice();
+    $sub = optSub($acc, $base);
+    $item = $sub->items()->first();
+    // 2 backups free, then 2.50 each.
+    $opt = Price::create([
+        'product_id' => $base->product_id, 'currency' => 'EUR', 'purpose' => 'option',
+        'pricing_model' => 'fixed', 'amount_minor' => 250, 'included_qty' => 2,
+        'interval' => 'month', 'interval_count' => 1,
+    ]);
+
+    Meteric::setOption($item, 'backups', '5', OptionType::Quantity->value, $opt, 5, CarbonImmutable::parse('2026-06-01Z'));
+    Meteric::renew($sub->fresh(), CarbonImmutable::parse('2026-07-01Z'));
+
+    // 5 - 2 free = 3 billed x 2.50 = 7.50.
+    $july = Charge::where('kind', LineKind::Option->value)
+        ->whereRaw("lower(covers) = '2026-07-01 00:00:00+00'")->first();
+
+    expect($july->amount_minor)->toBe(750);
+});
+
 it('re-bills an addon every renewal', function () {
     $acc = optAccount();
     $base = optBasePrice();

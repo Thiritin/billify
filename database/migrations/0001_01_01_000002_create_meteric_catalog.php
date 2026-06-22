@@ -69,6 +69,8 @@ return new class extends Migration
             $table->bigInteger('setup_fee_minor')->default(0);
             $table->bigInteger('cap_minor')->nullable();             // hourly monthly cap
             $table->bigInteger('min_charge_minor')->default(0);
+            $table->decimal('included_qty', 20, 6)->default(0);      // free allowance (usage-style, also for options)
+            $table->decimal('block_size', 20, 6)->nullable();        // bill per block of N units (ceil); null = per unit
             $table->jsonb('tiers')->default(DB::raw("'[]'::jsonb"));
             $table->boolean('tax_inclusive')->default(false);
             $table->timestampTz('valid_from')->useCurrent();

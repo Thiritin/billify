@@ -96,7 +96,7 @@ final class ChargeAccruer
                 continue;
             }
             $price = $option->price;
-            $amount = $price->amountFor((float) $option->quantity);
+            $amount = $price->amountForQuantity((float) $option->quantity);
             if ($amount->isZero()) {
                 continue;
             }
@@ -125,7 +125,7 @@ final class ChargeAccruer
 
         foreach ($item->addons()->where('state', ItemState::Active->value)->get() as $addon) {
             $price = $addon->price;
-            $amount = $price->amountFor((float) $addon->quantity);
+            $amount = $price->amountForQuantity((float) $addon->quantity);
             if ($amount->isZero()) {
                 continue;
             }

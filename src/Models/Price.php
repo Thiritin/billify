@@ -30,6 +30,9 @@ use Meteric\Support\RecurrenceRule;
  * @property BillingMode $billing_mode
  * @property int $setup_fee_minor
  * @property ?int $cap_minor
+ * @property int $min_charge_minor
+ * @property float $included_qty
+ * @property ?float $block_size
  * @property array $tiers
  * @property bool $tax_inclusive
  */
@@ -53,6 +56,8 @@ class Price extends MetericModel
             'setup_fee_minor' => 'integer',
             'cap_minor' => 'integer',
             'min_charge_minor' => 'integer',
+            'included_qty' => 'float',
+            'block_size' => 'float',
             'tiers' => 'array',
             'tax_inclusive' => 'boolean',
             'valid_from' => 'immutable_datetime',
@@ -117,5 +122,46 @@ class Price extends MetericModel
         }
 
         return MoneyMath::fromRate($quantity, $this->unit_rate, $this->currency);
+    }
+
+    /**
+     * Billable units for a quantity after the free allowance and block rounding,
+     * the same shape as a usage meter: subtract included_qty, then round up to
+     * whole blocks when block_size is set.
+     */
+    public function billedUnits(float $quantity): float
+    {
+        $effective = max(0.0, $quantity - $this->included_qty);
+
+        if ($this->block_size !== null && $this->block_size > 0) {
+            return (float) ceil($effective / $this->block_size);
+        }
+
+        return $effective;
+    }
+
+    /**
+     * Charge for a quantity with the usage-style knobs applied: free allowance
+     * (included_qty), block rounding (block_size), then the tier/flat pricing of
+     * amountFor(), clamped to min_charge_minor and cap_minor. Use this for
+     * configurable options and addons so their settings match metered usage.
+     */
+    public function amountForQuantity(float $quantity): Money
+    {
+        $amount = $this->amountFor($this->billedUnits($quantity));
+
+        if ($this->min_charge_minor > 0) {
+            $min = Money::ofMinor($this->min_charge_minor, $this->currency);
+            if ($amount->isLessThan($min)) {
+                $amount = $min;
+            }
+        }
+
+        $cap = $this->cap();
+        if ($cap !== null && $amount->isGreaterThan($cap)) {
+            $amount = $cap;
+        }
+
+        return $amount;
     }
 }

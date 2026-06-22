@@ -54,7 +54,7 @@ final class ItemManager
             ]);
 
             $this->charge($item, 'addon', $addon->id, LineKind::Addon,
-                $this->prorate($item, $price->amountFor($qty), $at),
+                $this->prorate($item, $price->amountForQuantity($qty), $at),
                 $price->product->name ?? 'Addon');
 
             return $addon;
@@ -66,7 +66,7 @@ final class ItemManager
     {
         $at ??= $this->clock->now();
         $item = $addon->item;
-        $full = $addon->price->amountFor((float) $addon->quantity);
+        $full = $addon->price->amountForQuantity((float) $addon->quantity);
 
         $this->charge($item, 'addon', $addon->id, LineKind::Credit,
             $this->prorate($item, $full, $at)->negated(),
@@ -107,13 +107,13 @@ final class ItemManager
                     $this->charge($item, 'item_option', $option->id, LineKind::Setup, $price->setupFee(), ucfirst($key).' setup', covers: false);
                 }
 
-                $deltaQty = $qty - $oldQty;
-                if ($deltaQty != 0.0) {
-                    $deltaFull = $price->amountFor(abs($deltaQty));
-                    $prorated = $this->prorate($item, $deltaFull, $at);
-                    $amount = $deltaQty > 0 ? $prorated : $prorated->negated();
-                    $kind = $deltaQty > 0 ? LineKind::Option : LineKind::Credit;
-                    $this->charge($item, 'item_option', $option->id, $kind, $amount, ucfirst($key));
+                // Price the difference between the new and old totals (correct for
+                // volume tiers, allowance, and blocks), then prorate it.
+                $delta = $price->amountForQuantity($qty)->minus($price->amountForQuantity($oldQty));
+                if (! $delta->isZero()) {
+                    $prorated = $this->prorate($item, $delta->abs(), $at);
+                    $up = $delta->isPositive();
+                    $this->charge($item, 'item_option', $option->id, $up ? LineKind::Option : LineKind::Credit, $up ? $prorated : $prorated->negated(), ucfirst($key));
                 }
             }
 

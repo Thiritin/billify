@@ -141,7 +141,15 @@ maps to invoices.
 Mid-cycle item extras.
 
 - **Addon (`meteric_addons`):** `quantity`, `state`, `group_key`, `metadata`; relationships `item()`, `product()`, `price()`.
-- **ItemOption (`meteric_item_options`):** `key`, `type`, `value`, `quantity`; relationships `item()`, `price()`; helper `boolValue(): bool`.
+- **ItemOption (`meteric_item_options`):** `key`, `type` (`OptionType`), `value`, `quantity`, `min_qty`, `max_qty`; relationships `item()`, `price()`; helper `boolValue(): bool`.
+
+## ProductOption / ProductOptionValue
+
+A product's declared configurable options (the catalog). See
+[Catalog options](/usage/addons-and-options#catalog-options).
+
+- **ProductOption (`meteric_product_options`):** `product_id`, `key`, `label`, `type` (`OptionType`), `required`, `min_qty`, `max_qty`, `sort`; relationships `product()`, `values()`.
+- **ProductOptionValue (`meteric_product_option_values`):** `option_id`, `value`, `label`, `price_id`, `sort`; relationships `option()`, `price()`.
 
 ## Commitment
 

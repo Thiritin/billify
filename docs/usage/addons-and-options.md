@@ -16,7 +16,8 @@ $addon = Meteric::addAddon($item, $ramPrice, qty: 1);
 
 The addon's price is prorated over the item's remaining period and booked as a
 `pending` charge of kind `addon`. The addon record links the item, product, and
-price.
+price. Like options, an active addon then recurs: every renewal bills it again
+for the new period through the same price engine (tiers included).
 
 ### Groups
 
@@ -37,8 +38,8 @@ choice mid-cycle and the math stays clean.
 ## Options
 
 An option is a configurable dimension on an item, gameserver slots, an OS
-choice, a feature toggle. Options are keyed, so setting the same key again
-updates it.
+choice, a feature toggle. These are the WHMCS "configurable options", with the
+same three shapes. Options are keyed, so setting the same key again updates it.
 
 ```php
 use Meteric\Facades\Meteric;
@@ -53,17 +54,116 @@ $option = Meteric::setOption(
 );
 ```
 
-| Option type | Use for |
-|-------------|---------|
-| `quantity` | Per-unit or tiered counts (slots, IPs). |
-| `choice` | A dropdown or radio (location, OS). |
-| `toggle` | A yes/no flag. |
+The `type` is a `Meteric\Enums\OptionType` value:
+
+| `OptionType` | WHMCS equivalent | Use for |
+|--------------|------------------|---------|
+| `Quantity` (`quantity`) | Quantity | Per-unit counts you scale (slots, extra IPs). |
+| `Choice` (`choice`) | Dropdown / radio | One priced choice of many (location, OS). |
+| `Toggle` (`toggle`) | Yes/No | A single on/off flag. |
+
+`setOption` has the full signature:
+
+```php
+setOption(
+    SubscriptionItem $item,
+    string $key,
+    string $value,
+    string $type,
+    ?Price $price = null,
+    float $qty = 1,
+    ?CarbonImmutable $at = null,
+    ?float $min = null,
+    ?float $max = null,
+): ItemOption
+```
 
 When you pass a `price`, Meteric prorates the *delta* against the previous
-quantity. Raising slots from 16 to 32 charges the prorated 16-slot increase;
-lowering it credits the prorated difference. With no price, the option is stored
-without a charge, useful for `choice` and `toggle` settings that do not change
-the bill. Read a toggle back with `$option->boolValue()`.
+quantity for the current cycle. Raising slots from 16 to 32 charges the prorated
+16-slot increase; lowering it credits the prorated difference. With no price, the
+option is stored without a charge, useful for `choice` and `toggle` settings that
+do not change the bill. Read a toggle back with `$option->boolValue()`.
+
+`$min` and `$max` bound a quantity option. A `qty` below `$min` or above `$max`
+throws `InvalidArgumentException` before anything is written.
+
+### Options recur every renewal
+
+An active option re-bills on every cycle, not once. When the accruer bills a
+period, it bills each active option (and addon) for the same window: same
+`covers`, `group`, and `title` as the base line. The option's line carries the
+option key as its description, the price interval as its `unit`, and the period
+in `covers`. Set 32 slots once and every renewal invoice carries a 32-slot line
+for that period.
+
+### Tiered and volume pricing
+
+Because an option points at a `Price`, it inherits the price engine, including
+[quantity tiers](/usage/products-and-prices#quantity-discounts-tiers). Give the
+option's price a `pricing_model` of `Volume` or `Tiered` with a `tiers` table and
+the quantity gets cheaper-as-it-grows pricing through `Price::amountFor`. This
+goes past WHMCS, whose configurable options are flat per-unit.
+
+```php
+$slotPrice = Price::create([
+    'product_id' => $product->id,
+    'currency' => 'EUR',
+    'pricing_model' => PricingModel::Volume,
+    'tiers' => [
+        ['up_to' => 10,   'unit_minor' => 100], // 1 to 10 slots at €1
+        ['up_to' => null, 'unit_minor' => 80],  // 11+ slots at €0.80
+    ],
+]);
+
+Meteric::setOption($item, 'slots', '24', 'quantity', $slotPrice, qty: 24);
+```
+
+### Setup fee
+
+If the option's price has a `setup_fee_minor`, a one-time `setup` line is charged
+once, when the option is first added. Later quantity changes on the same option
+do not re-charge it.
+
+## Catalog options
+
+`setOption` is the imperative path. A product can also *declare* its options up
+front, so checkout reads a menu instead of hardcoding keys and prices.
+
+`ProductOption` is a configurable option a product offers (`key`, `label`,
+`type`, `required`, `min_qty`, `max_qty`, `sort`). Its `values()` are
+`ProductOptionValue` rows (`value`, `label`, `price_id`), each pointing at a
+`Price`, so per-term, tiered, and setup pricing come for free. `Product::options()`
+lists them.
+
+```php
+use Meteric\Enums\OptionType;
+use Meteric\Models\{Price, ProductOption, ProductOptionValue};
+
+$ips = ProductOption::create([
+    'product_id' => $product->id,
+    'key' => 'extra_ips',
+    'label' => 'Extra IPs',
+    'type' => OptionType::Quantity,
+    'min_qty' => 0,
+    'max_qty' => 16,
+]);
+
+$ipv4 = ProductOptionValue::create([
+    'option_id' => $ips->id,
+    'value' => 'ipv4',
+    'label' => 'IPv4 address',
+    'price_id' => $ipv4Price->id,   // a Volume-tiered Price
+]);
+```
+
+Apply a chosen value with `chooseOption`. It reads the key, type, bounds, and the
+value's price off the catalog, then calls `setOption` for you:
+
+```php
+Meteric::chooseOption($item, $ipv4, qty: 8); // 8 IPv4 addresses, priced by tier
+```
+
+`chooseOption(SubscriptionItem $item, ProductOptionValue $value, float $qty = 1, ?CarbonImmutable $at = null)`.
 
 ## Quantity
 

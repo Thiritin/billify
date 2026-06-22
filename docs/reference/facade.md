@@ -40,10 +40,16 @@ Cancel at `'period_end'` (default) or `'now'`. No automatic refund.
 Book a prorated addon. Members of the same `group` are swapped (the old one is
 credited out).
 
-#### `setOption(SubscriptionItem $item, string $key, string $value, string $type, ?Price $price = null, float $qty = 1, ?CarbonImmutable $at = null): ItemOption`
+#### `setOption(SubscriptionItem $item, string $key, string $value, string $type, ?Price $price = null, float $qty = 1, ?CarbonImmutable $at = null, ?float $min = null, ?float $max = null): ItemOption`
 
 Set a configurable option (slots, OS, toggle). Prorates the price delta when a
-`price` is given.
+`price` is given; the option then recurs every renewal. `$min`/`$max` bound a
+quantity and throw `InvalidArgumentException` when violated.
+
+#### `chooseOption(SubscriptionItem $item, ProductOptionValue $value, float $qty = 1, ?CarbonImmutable $at = null): ItemOption`
+
+Apply a declared catalog option value. Reads the key, type, bounds, and price off
+the `ProductOptionValue`, then calls `setOption`.
 
 #### `setQuantity(SubscriptionItem $item, float $qty, ?CarbonImmutable $at = null): SubscriptionItem`
 

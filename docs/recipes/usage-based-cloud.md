@@ -113,7 +113,7 @@ $traffic->amountFor(99999); // Money €50.00 (clamped to the cap)
 ## Subscribe with the base fee
 
 The customer's subscription carries the base-fee item (prepaid) and the metered
-item (usage). The base item accrues its first month now; the metered item
+item (usage). The base item accrues its first month; the metered item
 accrues nothing on its own, usage drives its charges.
 
 ```php

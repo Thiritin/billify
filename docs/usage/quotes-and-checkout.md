@@ -76,7 +76,7 @@ $result = Meteric::subscribe($user)
     ->checkout();
 
 $result->subscription;  // created Subscription
-$result->invoice;       // Invoice billed now, or null if nothing was due
+$result->invoice;       // the issued Invoice, or null if nothing was due
 ```
 
 `checkout()` returns a `Checkout` with the created subscription and the invoice

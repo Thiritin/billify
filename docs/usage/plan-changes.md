@@ -10,12 +10,12 @@ use Meteric\Facades\Meteric;
 $item = Meteric::changePlan($item, $newPrice);
 ```
 
-## Upgrades are prorated now
+## Upgrades are prorated
 
 On an upgrade, Meteric charges the difference for the rest of the current period
 immediately. It does this with two itemized charges:
 
-- A credit for the unused portion of the old plan (prorated from now to period
+- A credit for the unused portion of the old plan (prorated to the period
   end).
 - A prorated charge for the new plan over the same remaining window.
 
@@ -39,7 +39,7 @@ use Meteric\Enums\DowngradePolicy;
 // Keep the current tier until the paid period ends, then renew lower.
 Meteric::changePlan($item, $smallerPrice, DowngradePolicy::Defer);
 
-// Switch to the lower plan now. Unused value of the higher plan is forfeited.
+// Switch to the lower plan immediately. Unused value of the higher plan is forfeited.
 Meteric::changePlan($item, $smallerPrice, DowngradePolicy::Discard);
 ```
 
@@ -61,8 +61,8 @@ $item->pending_change;     // ['price_id' => ..., 'apply_at' => ...]
 ## Hourly and metered plans
 
 Usage-based plans bill in arrears at the real rate. There is no prepaid value to
-prorate or forfeit, so a change of an hourly or metered price takes effect going
-forward: usage before the change bills at the old rate, usage after bills at the
+prorate or forfeit, so a change of an hourly or metered price takes effect
+immediately: usage before the change bills at the old rate, usage after bills at the
 new one. Roll up the old window before switching the rate if you want a clean
 cutover. See [Usage billing](/usage/usage-billing).
 

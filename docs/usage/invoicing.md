@@ -61,8 +61,8 @@ re-throws without rolling the local invoice back. See
 
 ## Lexware Office (lexoffice)
 
-To send finalized invoices and credit notes to Lexware Office (formerly
-lexoffice), set the driver and token:
+To send finalized invoices and credit notes to Lexware Office, set the driver
+and token:
 
 ```dotenv
 METERIC_INVOICE_DRIVER=lexoffice

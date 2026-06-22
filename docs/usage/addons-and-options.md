@@ -101,8 +101,7 @@ for that period.
 Because an option points at a `Price`, it inherits the price engine, including
 [quantity tiers](/usage/products-and-prices#quantity-discounts-tiers). Give the
 option's price a `pricing_model` of `Volume` or `Tiered` with a `tiers` table and
-the quantity gets cheaper-as-it-grows pricing through `Price::amountFor`. This
-goes past WHMCS, whose configurable options are flat per-unit.
+the quantity gets cheaper-as-it-grows pricing through `Price::amountFor`.
 
 ```php
 $slotPrice = Price::create([

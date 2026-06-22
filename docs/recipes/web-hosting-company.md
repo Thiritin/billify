@@ -288,7 +288,7 @@ queued on an item is applied at the period boundary during renewal.
 
 `changePlan()` detects the direction from the full-period amount. Pro (€12) is
 higher than Starter (€5), so this is an upgrade and Meteric charges the
-difference for the rest of the current period right now: a credit for the unused
+difference for the rest of the current period: a credit for the unused
 Starter, a prorated charge for Pro.
 
 ```php
@@ -310,7 +310,7 @@ use Meteric\Enums\DowngradePolicy;
 // Keep Pro until the paid period ends, then renew on Starter.
 Meteric::changePlan($item, $starter, DowngradePolicy::Defer);
 
-// Drop to Starter now. Unused Pro value is forfeited, no credit.
+// Drop to Starter immediately. Unused Pro value is forfeited, no credit.
 Meteric::changePlan($item, $starter, DowngradePolicy::Discard);
 ```
 

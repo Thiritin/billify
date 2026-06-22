@@ -62,8 +62,8 @@ $subscription = Meteric::subscribe($user)
     ->create();
 ```
 
-A trial sets the subscription state to `trialing` and `trial_end` to now plus
-the trial days. During a trial the first cycle is not billed. The builder
+A trial sets the subscription state to `trialing` and `trial_end` to the start
+instant plus the trial days. During a trial the first cycle is not billed. The builder
 reserves the period but defers the charge. The first renewal after the trial
 bills it. `isOnTrial()` on the subscription tells you where you stand.
 
@@ -79,7 +79,7 @@ use Meteric\Enums\{AnchorMode, FirstPeriodPolicy};
 $subscription = Meteric::subscribe($user)
     ->add($price)
     ->anchor(AnchorMode::FixedDay, 1)                 // bill on the 1st
-    ->firstPeriod(FirstPeriodPolicy::ProratePlusFull) // stub now + first full month
+    ->firstPeriod(FirstPeriodPolicy::ProratePlusFull) // stub plus first full month
     ->create();
 ```
 
@@ -93,12 +93,12 @@ $subscription = Meteric::subscribe($user)
 
 ### First-period policies
 
-| `FirstPeriodPolicy` | What is charged now |
+| `FirstPeriodPolicy` | What is charged upfront |
 |---------------------|---------------------|
 | `ProrateOnly` | The stub from signup to the anchor (default). |
 | `ProratePlusFull` | The stub plus the first full period. |
-| `FullPeriod` | One full period now, no stub proration. |
-| `FreeUntilAnchor` | Nothing now; the stub is free and billing starts at the anchor. |
+| `FullPeriod` | One full period upfront, no stub proration. |
+| `FreeUntilAnchor` | Nothing upfront; the stub is free and billing starts at the anchor. |
 
 Anchoring on the 1st with `ProratePlusFull`, a customer who signs up on the 25th
 of a €10/month plan is charged a 6-day stub (€2.00) plus the first full month
@@ -147,7 +147,7 @@ Subscription::dueForRenewal(CarbonImmutable::now())->get();
 // At period end (default): set cancel_at, keep billing until then.
 Meteric::cancel($subscription);
 
-// Immediately: cancel items now, no refund.
+// Immediately: cancel items right away, no refund.
 Meteric::cancel($subscription, 'now');
 ```
 

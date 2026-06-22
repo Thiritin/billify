@@ -51,8 +51,8 @@ TaxRate::create([
 ]);
 ```
 
-Now Swiss customers are charged 8.1% (3.8% for `lodging` products), EU customers
-still go through OSS, and customers elsewhere are untaxed until you register
+Swiss customers are charged 8.1% (3.8% for `lodging` products), EU customers
+go through OSS, and customers elsewhere are untaxed until you register
 there. The `category` matches the product's tax class, set it on the
 `TaxContext` to bill a reduced rate.
 

@@ -26,7 +26,7 @@ periods. Idempotent. Returns the created charges.
 
 #### `changePlan(SubscriptionItem $item, Price $newPrice, ?DowngradePolicy $downgrade = null, ?CarbonImmutable $at = null): SubscriptionItem`
 
-Switch an item's plan. Upgrade prorates the difference now; downgrade defers or
+Switch an item's plan. Upgrade prorates the difference; downgrade defers or
 discards. See [Plan changes](/usage/plan-changes).
 
 #### `cancel(Subscription $sub, string $at = 'period_end', ?CarbonImmutable $when = null): Subscription`

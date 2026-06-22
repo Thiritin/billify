@@ -172,7 +172,7 @@ $invoice = Meteric::invoicePending($account);
 // lines: slot option (€12.80 for 32 slots), runtime (6h × €0.05 = €0.30)
 ```
 
-A changed hourly rate takes effect going forward, usage before the change bills at
+A changed hourly rate takes effect immediately, usage before the change bills at
 the old rate, usage after at the new one. Roll up the old window before switching
 the rate for a clean cutover. See [Plan changes](/usage/plan-changes#hourly-and-metered-plans).
 

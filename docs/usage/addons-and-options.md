@@ -118,6 +118,50 @@ $slotPrice = Price::create([
 Meteric::setOption($item, 'slots', '24', 'quantity', $slotPrice, qty: 24);
 ```
 
+### Allowance, blocks and caps on options
+
+Option and addon prices carry the same usage-style knobs as a
+[meter dimension](/usage/usage-billing), so a flat per-unit option can hand out a
+free allowance or bill in blocks without a tier table. They layer on top of the
+flat/`unit_rate`/tier pricing through `Price::amountForQuantity`:
+
+- `included_qty`: a free allowance subtracted before billing.
+- `block_size`: bill per started block of N units (rounded up).
+- `cap_minor`: clamp the charge to a maximum.
+- `min_charge_minor`: floor the charge to a minimum.
+
+A "backups" quantity option with 2 free, then €2.50 each:
+
+```php
+$backups = Price::create([
+    'product_id' => $product->id,
+    'currency' => 'EUR',
+    'amount_minor' => 250,   // €2.50 per backup
+    'included_qty' => 2,     // first 2 free
+]);
+
+Meteric::setOption($item, 'backups', '5', 'quantity', $backups, qty: 5);
+// 5 backups bill (5 - 2) × €2.50 = €7.50
+```
+
+`block_size` bills per started block, so a 50 GB block at €4 charges €8 for 60 GB
+(two blocks):
+
+```php
+$storage = Price::create([
+    'product_id' => $product->id,
+    'currency' => 'EUR',
+    'amount_minor' => 400,   // €4 per block
+    'block_size' => 50,      // per started 50 GB
+]);
+```
+
+`billedUnits($qty)` exposes the post-allowance, post-block count these prices bill
+on. Renewal charges for options and addons go through `amountForQuantity`, and
+`setOption` prices a change as the difference of the two totals
+(`amountForQuantity(new) minus amountForQuantity(old)`), which stays correct with
+volume tiers and an allowance in play.
+
 ### Setup fee
 
 If the option's price has a `setup_fee_minor`, a one-time `setup` line is charged

@@ -105,6 +105,12 @@ $price->amountFor(100000);          // Money, round(qty × unit_rate)
 `amount`. Usage caps and allowances live on the
 [meter dimension](/usage/usage-billing).
 
+A price also carries the usage-style knobs `included_qty` (free allowance),
+`block_size` (bill per started block of N units), `cap_minor`, and
+`min_charge_minor`. `amountForQuantity($qty)` applies those on top of `amountFor`;
+[options and addons](/usage/addons-and-options#allowance-blocks-and-caps-on-options)
+bill through it.
+
 ### Quantity discounts (tiers)
 
 To make a quantity cheaper as it grows, set the `tiers` table and a tiered

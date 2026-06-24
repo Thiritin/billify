@@ -48,7 +48,6 @@ export default defineConfig({
           { text: 'Quotes and checkout', link: '/usage/quotes-and-checkout' },
           { text: 'Usage billing', link: '/usage/usage-billing' },
           { text: 'Addons and options', link: '/usage/addons-and-options' },
-          { text: 'Commitments', link: '/usage/commitments' },
           { text: 'Invoicing', link: '/usage/invoicing' },
           { text: 'Tax', link: '/usage/tax' },
           { text: 'Events and hooks', link: '/usage/extending' },

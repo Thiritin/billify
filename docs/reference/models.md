@@ -46,7 +46,7 @@ can have a parent for consolidated billing.
 
 ## Subscription
 
-`meteric_subscriptions`: a customer commitment.
+`meteric_subscriptions`: a customer's recurring billing agreement.
 
 - **Columns:** `account_id`, `currency`, `state`, `anchor_mode`, `anchor_day`, `first_period`, `current_period` (Period), `trial_end`, `cancel_at`, `canceled_at`.
 - **Relationships:** `account()`, `customer()` (morph), `items()`, `charges()`.
@@ -60,12 +60,12 @@ can have a parent for consolidated billing.
 `meteric_subscription_items`: a billed line within a subscription.
 
 - **Columns:** `subscription_id`, `product_id`, `price_id`, `label` (line title, e.g. a hostname), `quantity`, `billing_mode` (nullable override), `state`, `current_period` (Period), `pending_change` (array), `resource_type` / `resource_id` (morph).
-- **Relationships:** `subscription()`, `product()`, `price()`, `resource()` (morph), `addons()`, `options()`, `commitment()`, `usageRecords()`.
+- **Relationships:** `subscription()`, `product()`, `price()`, `resource()` (morph), `addons()`, `options()`, `usageRecords()`.
 - **Helpers:**
   - `lineTitle(): string`: the `label` if set, else the product name. Becomes the invoice line title.
   - `billingCycle(): ?Period`: the current cycle window (query your usage API for this range).
   - `billingMode(): BillingMode`: item override → price → `InAdvance`.
-  - `periodAmount(): Money`: committed rate while a commitment is active, else the price amount.
+  - `periodAmount(): Money`: amount for one full period at the item's quantity.
   - `hasPendingChange(): bool`: a deferred plan change is queued.
 
 ## Charge
@@ -152,14 +152,6 @@ A product's declared configurable options (the catalog). See
 
 - **ProductOption (`meteric_product_options`):** `product_id`, `key`, `label`, `type` (`OptionType`), `required`, `min_qty`, `max_qty`, `sort`; relationships `product()`, `values()`; helper `toDisplay(float $qty = 1): array` (option meta plus each value priced at `$qty`).
 - **ProductOptionValue (`meteric_product_option_values`):** `option_id`, `value`, `label`, `price_id`, `sort`; relationships `option()`, `price()`; helpers `amountFor(float $qty = 1): ?Money` (charge at a quantity, null when free), `toDisplay(float $qty = 1): array` (render-ready value row with pricing knobs).
-
-## Commitment
-
-`meteric_commitments`: a term commitment on an item.
-
-- **Columns:** `term_interval`, `term_count`, `upfront_minor`, `rate_minor`, `currency`, `state`, `term` (Period), `early_term` (array).
-- **Relationships:** `item()`.
-- **Helpers:** `isActive(): bool`, `committedRate(): Money`.
 
 ## BillingPeriod
 

@@ -17,7 +17,7 @@ add to `config/app.php`.
 The migrations create the `meteric_*` tables: products, prices, billing
 accounts, subscriptions and items, charges, invoices and lines, payments, tax
 rates and registrations, meter dimensions, usage records, billing periods,
-commitments, coupons, and discounts. Table names are prefixed `meteric_` (see
+coupons, and discounts. Table names are prefixed `meteric_` (see
 [Configuration](/guide/configuration)).
 
 Run them against PostgreSQL. The migration step enables `btree_gist` and

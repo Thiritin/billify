@@ -56,16 +56,6 @@ the `ProductOptionValue`, then calls `setOption`.
 
 Change an item's base quantity, prorating the difference.
 
-## Commitments
-
-#### `commit(SubscriptionItem $item, Interval $termInterval, int $termCount, Money $upfront, Money $rate, array $earlyTerm = [], ?CarbonImmutable $at = null): Commitment`
-
-Add a term commitment: upfront charge plus a reduced committed rate for the term.
-
-#### `terminateCommitment(Commitment $commitment, ?CarbonImmutable $at = null): Money`
-
-Terminate a commitment early. Returns the fee charged.
-
 ## Usage
 
 #### `recordUsage(SubscriptionItem $item, string $dimension, float $quantity, ?CarbonImmutable $occurredAt = null, ?string $key = null): UsageRecord`

@@ -1,7 +1,7 @@
 # Introduction
 
 Meteric is a billing engine for hosting systems, built as a Laravel package. It
-handles subscriptions, proration, usage metering, addons, commitments, and
+handles subscriptions, proration, usage metering, addons, and
 invoicing for products like VPS, domains, webhosting, cloud, and gameservers.
 The design borrows from Stripe Billing and WHMCS and is sized for hosts running
 real money through PostgreSQL.
@@ -47,7 +47,7 @@ double charge.
 | Concept | What it is |
 |---------|-----------|
 | `Product` / `Price` | Catalog entry and its versioned pricing: recurrence, billing mode, tiers, caps. |
-| `Subscription` / `SubscriptionItem` | A customer commitment and its billed lines. Items can morph to the provisioned resource. |
+| `Subscription` / `SubscriptionItem` | A customer's recurring agreement and its billed lines. Items can morph to the provisioned resource. |
 | `Addon` / `ItemOption` | Bookable extras (+4 GB RAM) and configurable dimensions (gameserver slots). |
 | `MeterDimension` / `UsageRecord` | Per-dimension usage (cpu-hours, traffic) for hourly and metered billing. |
 | `Charge` | Money owed. Accrues `pending`, flips to `invoiced` only on driver success. |

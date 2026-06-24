@@ -13,6 +13,7 @@ enum PricingModel: string
     case Metered = 'metered';
     case Hourly = 'hourly';
     case OneOff = 'one_off';
+    case Relative = 'relative';   // a percentage of the owning item's base price (addons)
 
     public function isUsageBased(): bool
     {

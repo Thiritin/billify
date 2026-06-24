@@ -33,6 +33,7 @@ use Meteric\Support\RecurrenceRule;
  * @property int $min_charge_minor
  * @property float $included_qty
  * @property ?float $block_size
+ * @property ?float $percent
  * @property array $tiers
  * @property bool $tax_inclusive
  */
@@ -58,6 +59,7 @@ class Price extends MetericModel
             'min_charge_minor' => 'integer',
             'included_qty' => 'float',
             'block_size' => 'float',
+            'percent' => 'float',
             'tiers' => 'array',
             'tax_inclusive' => 'boolean',
             'valid_from' => 'immutable_datetime',
@@ -146,6 +148,30 @@ class Price extends MetericModel
      * amountFor(), clamped to min_charge_minor and cap_minor. Use this for
      * configurable options and addons so their settings match metered usage.
      */
+    public function isRelative(): bool
+    {
+        return $this->pricing_model === PricingModel::Relative;
+    }
+
+    /** The percent without trailing zeros, e.g. "20" or "12.5". */
+    public function percentLabel(): string
+    {
+        return rtrim(rtrim(number_format((float) $this->percent, 4, '.', ''), '0'), '.');
+    }
+
+    /**
+     * Relative pricing: a percentage of a base amount (the owning item's period
+     * amount). Allowance, blocks, tiers, and caps do not apply.
+     */
+    public function amountOfBase(Money $base): Money
+    {
+        if ($this->percent === null || $this->percent <= 0) {
+            return Money::ofMinor(0, $base->getCurrency());
+        }
+
+        return $base->multipliedBy($this->percent / 100, RoundingMode::HALF_UP);
+    }
+
     public function amountForQuantity(float $quantity): Money
     {
         $amount = $this->amountFor($this->billedUnits($quantity));

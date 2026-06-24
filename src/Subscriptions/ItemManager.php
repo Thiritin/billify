@@ -36,6 +36,7 @@ final class ItemManager
     public function addAddon(SubscriptionItem $item, Price $price, ?string $group = null, float $qty = 1, ?CarbonImmutable $at = null): Addon
     {
         $at ??= $this->clock->now();
+        $this->guardRelative($item, $price);
 
         return DB::transaction(function () use ($item, $price, $group, $qty, $at): Addon {
             if ($group !== null) {
@@ -53,12 +54,26 @@ final class ItemManager
                 'state' => ItemState::Active,
             ]);
 
-            $this->charge($item, 'addon', $addon->id, LineKind::Addon,
-                $this->prorate($item, $price->amountForQuantity($qty), $at),
-                $price->product->name ?? 'Addon');
+            $full = $price->isRelative() ? $price->amountOfBase($item->periodAmount()) : $price->amountForQuantity($qty);
+            $desc = $price->isRelative() ? $price->percentLabel().'% of '.($item->product->name ?? 'plan') : ($price->product->name ?? 'Addon');
+            $this->charge($item, 'addon', $addon->id, LineKind::Addon, $this->prorate($item, $full, $at), $desc);
 
             return $addon;
         });
+    }
+
+    /** A relative addon needs a recurring base in the same currency to take a percentage of. */
+    private function guardRelative(SubscriptionItem $item, Price $price): void
+    {
+        if (! $price->isRelative()) {
+            return;
+        }
+        if ($item->price->pricing_model->isUsageBased()) {
+            throw new \InvalidArgumentException('A relative addon needs a recurring base price, not a usage-based one.');
+        }
+        if ($price->currency !== $item->price->currency) {
+            throw new \InvalidArgumentException("Relative addon currency {$price->currency} must match the base {$item->price->currency}.");
+        }
     }
 
     /** Remove an addon mid-cycle with a prorated credit for the unused portion. */
@@ -66,11 +81,12 @@ final class ItemManager
     {
         $at ??= $this->clock->now();
         $item = $addon->item;
-        $full = $addon->price->amountForQuantity((float) $addon->quantity);
+        $price = $addon->price;
+        $full = $price->isRelative() ? $price->amountOfBase($item->periodAmount()) : $price->amountForQuantity((float) $addon->quantity);
 
         $this->charge($item, 'addon', $addon->id, LineKind::Credit,
             $this->prorate($item, $full, $at)->negated(),
-            'Removed '.($addon->price->product->name ?? 'addon'));
+            'Removed '.($price->product->name ?? 'addon'));
 
         $addon->forceFill(['state' => ItemState::Canceled])->save();
     }

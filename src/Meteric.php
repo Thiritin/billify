@@ -262,6 +262,12 @@ final class Meteric
         return app(ItemManager::class)->addAddon($item, $price, $group, $qty, $at);
     }
 
+    /** Remove an addon mid-cycle with a prorated credit. */
+    public function removeAddon(Addon $addon, ?CarbonImmutable $at = null): void
+    {
+        app(ItemManager::class)->removeAddon($addon, $at);
+    }
+
     /** Set a configurable option (e.g. slots) on an item, prorating the delta. */
     public function setOption(SubscriptionItem $item, string $key, string $value, string $type, ?Price $price = null, float $qty = 1, ?CarbonImmutable $at = null, ?float $min = null, ?float $max = null): ItemOption
     {

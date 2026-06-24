@@ -125,10 +125,12 @@ final class ChargeAccruer
 
         foreach ($item->addons()->where('state', ItemState::Active->value)->get() as $addon) {
             $price = $addon->price;
-            $amount = $price->amountForQuantity((float) $addon->quantity);
+            $relative = $price->isRelative();
+            $amount = $relative ? $price->amountOfBase($item->periodAmount()) : $price->amountForQuantity((float) $addon->quantity);
             if ($amount->isZero()) {
                 continue;
             }
+            $amountMinor = $amount->getMinorAmount()->toInt();
 
             $created[] = Charge::create([
                 'account_id' => $sub->account_id,
@@ -140,12 +142,14 @@ final class ChargeAccruer
                 'state' => ChargeState::Pending,
                 'title' => $item->lineTitle(),
                 'group' => $item->group,
-                'description' => $addon->product->name ?? 'Addon',
-                'quantity' => $addon->quantity,
+                'description' => $relative
+                    ? $price->percentLabel().'% of '.($item->product->name ?? 'plan')
+                    : ($addon->product->name ?? 'Addon'),
+                'quantity' => $relative ? 1 : $addon->quantity,
                 'unit' => $price->interval?->value,
-                'unit_minor' => $price->unit_rate === null ? $price->amount_minor : null,
-                'unit_rate' => $price->unit_rate,
-                'amount_minor' => $amount->getMinorAmount()->toInt(),
+                'unit_minor' => $relative ? $amountMinor : ($price->unit_rate === null ? $price->amount_minor : null),
+                'unit_rate' => $relative ? null : $price->unit_rate,
+                'amount_minor' => $amountMinor,
                 'currency' => $sub->currency,
                 'covers' => $period,
                 'idempotency_key' => 'addon_'.substr(hash('sha256', $addon->id.$period->toRange()), 0, 34),

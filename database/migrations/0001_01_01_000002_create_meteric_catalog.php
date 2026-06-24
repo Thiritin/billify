@@ -70,6 +70,7 @@ return new class extends Migration
             $table->bigInteger('min_charge_minor')->default(0);
             $table->decimal('included_qty', 20, 6)->default(0);      // free allowance (usage-style, also for options)
             $table->decimal('block_size', 20, 6)->nullable();        // bill per block of N units (ceil); null = per unit
+            $table->decimal('percent', 9, 6)->nullable();            // relative pricing: % of the owning item's base price
             $table->jsonb('tiers')->default(DB::raw("'[]'::jsonb"));
             $table->boolean('tax_inclusive')->default(false);
             $table->timestampTz('valid_from')->useCurrent();
@@ -86,6 +87,7 @@ return new class extends Migration
         Pg::enumCheck('meteric_prices', 'billing_mode', BillingMode::class);
         Pg::check('meteric_prices', 'meteric_prices_amount_nonneg', 'amount_minor >= 0');
         Pg::check('meteric_prices', 'meteric_prices_rate_nonneg', 'unit_rate IS NULL OR unit_rate >= 0');
+        Pg::check('meteric_prices', 'meteric_prices_percent', "pricing_model <> 'relative' OR (percent IS NOT NULL AND percent >= 0)");
 
         Schema::create('meteric_meter_dimensions', function (Blueprint $table) {
             $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));

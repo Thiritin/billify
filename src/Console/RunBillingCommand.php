@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Meteric\Console;
 
-use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 use Meteric\Contracts\Clock;
 use Meteric\Meteric;
@@ -12,20 +11,22 @@ use Meteric\Models\BillingAccount;
 use Meteric\Models\Subscription;
 
 /**
- * Close due billing cycles: roll up each due subscription's elapsed usage window
- * into charges, then renew (accrue the next cycle). Idempotent via the billing
- * guard, so schedule it as often as you like. Pass --invoice to also issue an
- * invoice per affected account; leave it off to invoice on your own schedule.
+ * The billing tick. For every subscription whose period has ended it rolls up the
+ * elapsed usage window into charges and renews (accrues the next cycle), then
+ * issues an invoice per affected account and flags any past-due invoices overdue.
+ *
+ * Every step is idempotent (billing-period guard, overdue_at guard), so schedule
+ * this on a short interval and it only acts when there is something to do.
  */
 final class RunBillingCommand extends Command
 {
-    protected $signature = 'meteric:bill {--invoice : Issue invoices for affected accounts} {--at= : Run as of this datetime}';
+    protected $signature = 'meteric:run';
 
-    protected $description = 'Roll up due usage and renew due subscriptions';
+    protected $description = 'Billing tick: roll up usage, renew, invoice, flag overdue';
 
     public function handle(Meteric $meteric, Clock $clock): int
     {
-        $at = $this->option('at') ? CarbonImmutable::parse((string) $this->option('at')) : $clock->now();
+        $at = $clock->now();
 
         $rolled = 0;
         $renewed = 0;
@@ -44,16 +45,17 @@ final class RunBillingCommand extends Command
             }
         );
 
-        if ($this->option('invoice')) {
-            foreach ($accountIds as $id) {
-                $account = BillingAccount::find($id);
-                if ($account !== null) {
-                    $meteric->invoicePending($account);
-                }
+        $invoiced = 0;
+        foreach ($accountIds as $id) {
+            $account = BillingAccount::find($id);
+            if ($account !== null && $meteric->invoicePending($account) !== null) {
+                $invoiced++;
             }
         }
 
-        $this->info("meteric:bill done: {$rolled} usage charge(s), {$renewed} renewal charge(s) across ".count($accountIds).' account(s).');
+        $overdue = $meteric->markOverdue();
+
+        $this->info("meteric:run done: {$rolled} usage + {$renewed} renewal charge(s), {$invoiced} invoice(s), {$overdue} newly overdue.");
 
         return self::SUCCESS;
     }

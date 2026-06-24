@@ -88,6 +88,20 @@ it('marks overdue invoices past_due and fires the events', function () {
     Event::assertDispatched(SubscriptionPastDue::class);
 });
 
+it('flags an invoice overdue once across repeated runs', function () {
+    Event::fake([InvoiceOverdue::class]);
+    config()->set('meteric.invoice.net_days', 14);
+    $acc = eventsAccount();
+    Meteric::subscribe()->account($acc)->at(CarbonImmutable::parse('2026-06-01Z'))->add(eventsPlan(1000), 1)->create();
+    $invoice = Meteric::invoicePending($acc);
+
+    $at = CarbonImmutable::now()->addDays(40);
+    expect(Meteric::markOverdue($at))->toBe(1)
+        ->and(Meteric::markOverdue($at))->toBe(0)   // overdue_at guard: no re-fire
+        ->and($invoice->fresh()->overdue_at)->not->toBeNull();
+    Event::assertDispatchedTimes(InvoiceOverdue::class, 1);
+});
+
 it('issues a credit note against an invoice (the refund record)', function () {
     Event::fake([CreditNoteIssued::class]);
     $acc = eventsAccount();

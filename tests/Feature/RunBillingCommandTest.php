@@ -15,7 +15,7 @@ use Meteric\Models\Product;
 
 uses(RefreshDatabase::class);
 
-it('rolls up due usage, renews, and invoices on a schedule', function () {
+it('rolls up due usage, renews, and invoices in one tick', function () {
     $acc = BillingAccount::create(['owner_type' => 'user', 'owner_id' => '1', 'currency' => 'EUR']);
     $product = Product::create(['type' => 'vps', 'slug' => 'rbc-'.uniqid(), 'name' => 'VPS', 'pricing_model' => 'fixed']);
     MeterDimension::create([
@@ -31,8 +31,9 @@ it('rolls up due usage, renews, and invoices on a schedule', function () {
     $item = $sub->items->first();
     Meteric::recordUsage($item, 'traffic', 500, CarbonImmutable::parse('2026-06-20Z')); // 500 GB in June
 
-    // Cycle closed (period ended 2026-07-01): roll up June usage + renew + invoice.
-    test()->artisan('meteric:bill', ['--at' => '2026-07-02T00:00:00Z', '--invoice' => true])->assertSuccessful();
+    // The cycle has closed (period ended 2026-07-01).
+    test()->travelTo(CarbonImmutable::parse('2026-07-02T00:00:00Z'));
+    test()->artisan('meteric:run')->assertSuccessful();
 
     $charges = Charge::where('subscription_id', $sub->id)->get();
     expect($charges->where('kind', LineKind::Usage->value)->where('amount_minor', 5000)->count())->toBe(1)  // 500 × €0.10
@@ -40,7 +41,7 @@ it('rolls up due usage, renews, and invoices on a schedule', function () {
         ->and(Invoice::where('account_id', $acc->id)->count())->toBe(1);
 });
 
-it('is idempotent: a second run bills nothing new', function () {
+it('is idempotent: a second tick bills nothing new', function () {
     $acc = BillingAccount::create(['owner_type' => 'user', 'owner_id' => '1', 'currency' => 'EUR']);
     $price = Price::create([
         'product_id' => Product::create(['type' => 'vps', 'slug' => 'rbc2-'.uniqid(), 'name' => 'VPS', 'pricing_model' => 'fixed'])->id,
@@ -48,9 +49,10 @@ it('is idempotent: a second run bills nothing new', function () {
     ]);
     $sub = Meteric::subscribe()->account($acc)->at(CarbonImmutable::parse('2026-06-01Z'))->add($price, 1)->create();
 
-    test()->artisan('meteric:bill', ['--at' => '2026-07-02T00:00:00Z'])->assertSuccessful();
+    test()->travelTo(CarbonImmutable::parse('2026-07-02T00:00:00Z'));
+    test()->artisan('meteric:run')->assertSuccessful();
     $after = Charge::where('subscription_id', $sub->id)->count();
 
-    test()->artisan('meteric:bill', ['--at' => '2026-07-02T00:00:00Z'])->assertSuccessful();
+    test()->artisan('meteric:run')->assertSuccessful();
     expect(Charge::where('subscription_id', $sub->id)->count())->toBe($after); // guard holds
 });

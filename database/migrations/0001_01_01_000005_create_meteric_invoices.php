@@ -32,6 +32,7 @@ return new class extends Migration
             $table->bigInteger('paid_minor')->default(0);
             $table->timestampTz('issued_at')->nullable();
             $table->timestampTz('due_at')->nullable();
+            $table->timestampTz('overdue_at')->nullable();    // set once when first flagged overdue (events fire once)
             $table->timestampTz('paid_at')->nullable();
             $table->string('idempotency_key')->nullable();   // batch (charge set) key for safe retry
             $table->jsonb('metadata')->default(DB::raw("'{}'::jsonb"));

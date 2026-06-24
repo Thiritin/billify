@@ -25,6 +25,7 @@ use Meteric\Enums\InvoiceState;
  * @property int $total_minor
  * @property int $paid_minor
  * @property ?CarbonImmutable $due_at
+ * @property ?CarbonImmutable $overdue_at
  * @property ?CarbonImmutable $paid_at
  */
 class Invoice extends MetericModel
@@ -43,6 +44,7 @@ class Invoice extends MetericModel
             'paid_minor' => 'integer',
             'issued_at' => 'immutable_datetime',
             'due_at' => 'immutable_datetime',
+            'overdue_at' => 'immutable_datetime',
             'paid_at' => 'immutable_datetime',
             'version' => 'integer',
             'metadata' => 'array',

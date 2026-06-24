@@ -19,13 +19,13 @@ use Meteric\Support\Period;
 
 uses(RefreshDatabase::class);
 
-function meteredItem(string $rate = '0.500000', float $included = 0): SubscriptionItem
+function meteredItem(string $rate = '0.500000', float $included = 0, string $aggregation = 'sum'): SubscriptionItem
 {
     $account = BillingAccount::create(['owner_type' => 'user', 'owner_id' => '1', 'currency' => 'EUR']);
     $product = Product::create(['type' => 'cloud', 'slug' => 'cloud-'.uniqid(), 'name' => 'Cloud', 'pricing_model' => 'metered']);
     MeterDimension::create([
         'product_id' => $product->id, 'key' => 'traffic', 'unit' => 'GB',
-        'aggregation' => 'sum', 'rate' => $rate, 'currency' => 'EUR', 'included_qty' => $included,
+        'aggregation' => $aggregation, 'rate' => $rate, 'currency' => 'EUR', 'included_qty' => $included,
     ]);
     $price = Price::create([
         'product_id' => $product->id, 'currency' => 'EUR', 'amount_minor' => 0,
@@ -42,6 +42,21 @@ function usageWindow(): Period
 {
     return new Period(CarbonImmutable::parse('2026-06-01Z'), CarbonImmutable::parse('2026-07-01Z'));
 }
+
+it('bills the peak sample with max aggregation', function () {
+    $item = meteredItem('1.000000', 0, 'max');
+
+    // Peak (high-water-mark) billing: the largest sample in the cycle.
+    Meteric::recordUsage($item, 'traffic', 30, CarbonImmutable::parse('2026-06-05Z'), key: 'a');
+    Meteric::recordUsage($item, 'traffic', 80, CarbonImmutable::parse('2026-06-15Z'), key: 'b');
+    Meteric::recordUsage($item, 'traffic', 50, CarbonImmutable::parse('2026-06-25Z'), key: 'c');
+
+    $charges = Meteric::rollupUsage($item, usageWindow());
+
+    // max = 80 × €1.00 = €80.00 (not the 160 sum).
+    expect($charges[0]->amount_minor)->toBe(8000)
+        ->and($charges[0]->quantity)->toBe(80.0);
+});
 
 it('rolls up reported usage into an in-arrears charge', function () {
     $item = meteredItem('0.500000');

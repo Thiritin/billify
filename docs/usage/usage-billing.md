@@ -141,6 +141,42 @@ mechanism that makes [renewal](/usage/subscriptions#renew) idempotent, so a
 re-run over the same window is a no-op. After rollup, the charges are `pending`
 and get billed by [invoicing](/usage/invoicing) like any other charge.
 
+## Scheduling
+
+Meteric does not collect metrics or run a clock of its own. You own the schedule.
+Your job reads your metrics source in one batch, computes each item's value in
+PHP, and pushes it. A platform like OpenStack fits the batch shape: fetch every
+server once, compute, record.
+
+```php
+// app/Console/Kernel.php (or a scheduled job)
+$schedule->call(function () {
+    $servers = OpenStack::servers();                 // one batch call
+
+    foreach (SubscriptionItem::whereType('vps')->with('subscription')->cursor() as $item) {
+        $mbps = percentile95($servers[$item->resource_id]->bandwidthSamples());
+        Meteric::recordUsage($item, 'bandwidth', $mbps);
+    }
+})->dailyAt('02:00');
+```
+
+For 95th-percentile (burstable) bandwidth, sample the average rate at a fixed
+interval, 5 minutes is the convention, and compute the percentile in your job
+over those samples, then record the one number. Meteric stores and prices it; the
+sampling cadence and statistic live in your collector.
+
+Close each cycle on its own schedule:
+
+```php
+$schedule->call(function () {
+    foreach (Subscription::dueForRenewal(now())->get() as $sub) {
+        foreach ($sub->items as $item) {
+            Meteric::rollupUsage($item, $item->billingCycle());
+        }
+    }
+})->hourly();
+```
+
 ## Hourly pricing
 
 Hourly is a usage model where the rate is "forward", you bill the hours that

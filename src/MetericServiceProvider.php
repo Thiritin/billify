@@ -32,6 +32,7 @@ use Meteric\Tax\DatabaseTaxResolver;
 use Meteric\Tax\EuVatResolver;
 use Meteric\Tax\FlatRateTaxResolver;
 use Meteric\Tax\IbericodeVatResolver;
+use Meteric\Tax\Vies\Vies;
 use Meteric\Usage\UsageRollup;
 
 final class MetericServiceProvider extends ServiceProvider
@@ -41,6 +42,10 @@ final class MetericServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__.'/../config/meteric.php', 'meteric');
 
         $this->app->singleton(Clock::class, SystemClock::class);
+
+        $this->app->singleton(Vies::class, fn ($app) => new Vies(
+            baseUrl: $app['config']['meteric.tax.vies_base_url'] ?? 'https://ec.europa.eu/taxation_customs/vies/rest-api',
+        ));
 
         // Tax resolver — selected by config('meteric.tax.driver').
         $this->app->singleton(TaxResolver::class, function ($app) {

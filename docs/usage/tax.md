@@ -68,6 +68,33 @@ country with a valid VAT id is reverse-charged rather than taxed. Turn VIES
 verification off with `METERIC_VERIFY_VAT_ID=false`, which then trusts the mere
 presence of a VAT id.
 
+## Qualified VIES check
+
+The reverse-charge decision above only needs a valid/invalid answer. For a
+checkout form that warns when the entered company details do not match the VAT
+registration, run a qualified check. It returns VIES's registered name and
+address plus per-field match flags, and a consultation number you can keep as an
+audit record.
+
+```php
+$result = Meteric::viesCheck('DE', '123456789', [
+    'name' => 'ACME GmbH',
+    'street' => 'Strasse 1',
+    'city' => 'Berlin',
+], requester: ['countryCode' => 'DE', 'vatNumber' => '999999999']);
+
+$result->valid;               // bool, the VAT id is registered
+$result->detailsMatch();      // bool, valid and no supplied detail came back as a mismatch
+$result->mismatches();        // ['name'] when the entered name does not match
+$result->name;                // VIES's registered name
+$result->consultationNumber;  // VIES request identifier, for your audit record
+```
+
+Trader fields are optional: omit them to get a plain valid/invalid result. The
+endpoint is `config('meteric.tax.vies_base_url')` (the EU VIES REST API by
+default). Tax computation does not depend on this call; it is for the warning and
+the record.
+
 ## Keeping EU rates current
 
 `meteric:vat-sync` refreshes the EU rows of `meteric_tax_rates` from ibericode.

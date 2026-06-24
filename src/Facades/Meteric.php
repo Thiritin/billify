@@ -16,6 +16,7 @@ use Meteric\Models\Payment;
  * @method static ?Invoice invoiceConsolidated(BillingAccount $payer, ?string $currency = null)
  * @method static Payment recordPayment(Invoice $invoice, Money $amount, ?string $reference = null)
  * @method static \Meteric\Quoting\QuoteBuilder quote()
+ * @method static \Meteric\Tax\Vies\ViesResult viesCheck(string $countryCode, string $vatNumber, array $trader = [], array $requester = [])
  * @method static \Meteric\Subscriptions\SubscriptionBuilder subscribe(?\Illuminate\Database\Eloquent\Model $customer = null)
  * @method static \Meteric\Subscriptions\SubscriptionBuilder checkout(?\Illuminate\Database\Eloquent\Model $customer = null)
  * @method static \Meteric\Subscriptions\CheckoutBuilder openCheckout(?\Illuminate\Database\Eloquent\Model $customer = null)

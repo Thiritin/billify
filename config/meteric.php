@@ -78,6 +78,10 @@ return [
         'flat_rate' => env('METERIC_TAX_FLAT_RATE', 0.19),
         'merchant_country' => env('METERIC_MERCHANT_COUNTRY', 'DE'),
 
+        // Qualified VIES endpoint (Meteric::viesCheck): EU VAT validation with
+        // trader name/address match flags. Override only for a proxy or a mock.
+        'vies_base_url' => env('METERIC_VIES_URL', 'https://ec.europa.eu/taxation_customs/vies/rest-api'),
+
         // ibericode driver settings
         'ibericode' => [
             // Writable path for the auto-refreshed rates cache.

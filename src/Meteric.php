@@ -42,6 +42,8 @@ use Meteric\Subscriptions\ItemManager;
 use Meteric\Subscriptions\SubscriptionBuilder;
 use Meteric\Subscriptions\SubscriptionManager;
 use Meteric\Support\Period;
+use Meteric\Tax\Vies\Vies;
+use Meteric\Tax\Vies\ViesResult;
 use Meteric\Usage\UsageRollup;
 use Throwable;
 
@@ -207,6 +209,21 @@ final class Meteric
     public function quote(): QuoteBuilder
     {
         return app(QuoteBuilder::class);
+    }
+
+    /**
+     * Qualified VIES check: validates an EU VAT id and, when trader details are
+     * passed, returns VIES's registered name/address and per-field match flags
+     * for a "details do not match" warning. The consultationNumber is your audit
+     * reference. Tax computation uses the resolvers' own VIES check; this is for
+     * the UI warning and the record.
+     *
+     * @param  array<string,string>  $trader  name, companyType, street, postalCode, city
+     * @param  array<string,string>  $requester  countryCode, vatNumber
+     */
+    public function viesCheck(string $countryCode, string $vatNumber, array $trader = [], array $requester = []): ViesResult
+    {
+        return app(Vies::class)->check($countryCode, $vatNumber, $trader, $requester);
     }
 
     /** Begin a subscription. Pass the billable customer model. */

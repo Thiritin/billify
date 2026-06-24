@@ -21,7 +21,8 @@ All live in `Meteric\Events`. Register listeners the normal Laravel way.
 | `SubscriptionRenewed` | a renewal accrued charges | `Subscription`, `Charge[]` |
 | `SubscriptionPaused` | billing was suspended | `Subscription` |
 | `SubscriptionResumed` | billing resumed | `Subscription` |
-| `SubscriptionCanceled` | a subscription was canceled | `Subscription` |
+| `SubscriptionCancellationScheduled` | a future cancel was set (notice/confirmation) | `Subscription`, `CarbonImmutable $at`, `array $meta` |
+| `SubscriptionCanceled` | a subscription was terminated | `Subscription` |
 
 ## Suspension
 

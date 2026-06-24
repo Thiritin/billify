@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Event;
 use Meteric\Enums\ItemState;
 use Meteric\Enums\SubscriptionState;
 use Meteric\Events\SubscriptionCanceled;
+use Meteric\Events\SubscriptionCancellationScheduled;
 use Meteric\Facades\Meteric;
 use Meteric\Models\BillingAccount;
 use Meteric\Models\Price;
@@ -79,6 +80,19 @@ it('cancels to a specific later boundary and bills up to it', function () {
     // Renew past it: bills July and August, then stops at the Sep boundary.
     expect(Meteric::renew($sub->fresh(), CarbonImmutable::parse('2026-10-01Z')))->toHaveCount(2)
         ->and(Meteric::processDueCancellations(CarbonImmutable::parse('2026-09-01Z')))->toBe(1);
+});
+
+it('fires a scheduled event when a future cancel is set, canceled at enactment', function () {
+    Event::fake([SubscriptionCancellationScheduled::class, SubscriptionCanceled::class]);
+    $sub = cncSub(cncAccount(), cncPlan());
+
+    Meteric::cancel($sub, 'period_end', meta: ['reason' => 'moving']);
+
+    Event::assertDispatched(SubscriptionCancellationScheduled::class, fn ($e) => $e->at->toDateString() === '2026-07-01' && $e->meta['reason'] === 'moving');
+    Event::assertNotDispatched(SubscriptionCanceled::class);  // not terminated yet
+
+    Meteric::processDueCancellations(CarbonImmutable::parse('2026-07-01Z'));
+    Event::assertDispatched(SubscriptionCanceled::class);
 });
 
 it('stores cancellation metadata and keeps it through enactment', function () {

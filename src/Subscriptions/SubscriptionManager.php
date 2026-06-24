@@ -22,6 +22,7 @@ use Meteric\Enums\SubscriptionState;
 use Meteric\Enums\UpgradePolicy;
 use Meteric\Events\InvoiceOverdue;
 use Meteric\Events\SubscriptionCanceled;
+use Meteric\Events\SubscriptionCancellationScheduled;
 use Meteric\Events\SubscriptionPastDue;
 use Meteric\Events\SubscriptionPaused;
 use Meteric\Events\SubscriptionRenewed;
@@ -376,6 +377,8 @@ final class SubscriptionManager
         }
 
         $sub->forceFill(['cancel_at' => $target, 'metadata' => $metadata])->save();
+
+        SubscriptionCancellationScheduled::dispatch($sub, $target, $meta);
 
         return $sub;
     }

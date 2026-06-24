@@ -144,13 +144,47 @@ Subscription::dueForRenewal(CarbonImmutable::now())->get();
 ## Cancel
 
 ```php
+use Carbon\CarbonImmutable;
+
 // At period end (default): set cancel_at, keep billing until then.
 Meteric::cancel($subscription);
 
 // Immediately: cancel items right away, no refund.
 Meteric::cancel($subscription, 'now');
+
+// At a specific future term boundary.
+Meteric::cancel($subscription, CarbonImmutable::parse('2026-12-01'));
 ```
 
-Cancellation does not refund. `period_end` sets `cancel_at` to the current
-period's end and leaves the subscription billable until then. `now` cancels the
-items and the subscription immediately. Neither path moves money.
+Cancellation does not refund; no path moves money.
+
+`now` cancels the items and the subscription immediately (state `Canceled`,
+fires `SubscriptionCanceled`).
+
+`period_end` and a boundary date schedule the cancel: they set `cancel_at` and
+leave the subscription billable until that boundary. Renewal stops accruing on or
+after `cancel_at`. The `meteric:run` tick enacts the cancel once the boundary
+passes (state `Canceled`, fires `SubscriptionCanceled`).
+
+### Notice window
+
+A product can require notice before a contract ends with the `cancel_notice_days`
+key in its `config`. The notice window is the strictest value across the
+subscription's active items. Scheduling a cancel to a boundary inside that window
+throws `InvalidArgumentException`:
+
+```php
+// Throws if today is within cancel_notice_days of the period end.
+Meteric::cancel($subscription, 'period_end');
+```
+
+To offer a "cancel at end of period N" dropdown, ask for the next valid
+boundaries:
+
+```php
+$boundaries = Meteric::cancellationOptions($subscription, count: 3);
+// list<CarbonImmutable>: the next 3 term ends that still satisfy the notice window
+```
+
+The package enforces the notice rule; rendering the choices is your UI's job. A
+product with `cancel_notice_days` of 0 can cancel to any boundary.

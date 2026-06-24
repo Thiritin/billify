@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace Meteric\Models;
 
-use Brick\Math\RoundingMode;
 use Brick\Money\Money;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Meteric\Casts\PeriodCast;
 use Meteric\Enums\BillingMode;
@@ -84,12 +82,6 @@ class SubscriptionItem extends MetericModel
         return $this->hasMany(ItemOption::class, 'item_id');
     }
 
-    /** @return HasOne<Commitment, $this> */
-    public function commitment(): HasOne
-    {
-        return $this->hasOne(Commitment::class, 'item_id');
-    }
-
     /** @return HasMany<UsageRecord, $this> */
     public function usageRecords(): HasMany
     {
@@ -120,14 +112,9 @@ class SubscriptionItem extends MetericModel
         return $this->current_period;
     }
 
-    /** Amount for one full period: committed rate while under an active commitment, else price. */
+    /** Amount for one full period at the item's quantity. */
     public function periodAmount(): Money
     {
-        $commitment = $this->commitment;
-        if ($commitment && $commitment->isActive()) {
-            return $commitment->committedRate()->multipliedBy((string) $this->quantity, RoundingMode::HALF_UP);
-        }
-
         return $this->price->amountFor((float) $this->quantity);
     }
 

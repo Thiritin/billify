@@ -21,7 +21,6 @@ use Meteric\Invoicing\Drivers\DatabaseInvoiceDriver;
 use Meteric\Invoicing\Drivers\LexofficeInvoiceDriver;
 use Meteric\Proration\Prorator;
 use Meteric\Quoting\QuoteBuilder;
-use Meteric\Subscriptions\CommitmentManager;
 use Meteric\Subscriptions\ItemManager;
 use Meteric\Subscriptions\SubscriptionBuilder;
 use Meteric\Subscriptions\SubscriptionManager;
@@ -119,10 +118,6 @@ final class MetericServiceProvider extends ServiceProvider
         $this->app->singleton(ItemManager::class, fn ($app) => new ItemManager(
             clock: $app->make(Clock::class),
             prorator: $app->make(Prorator::class),
-        ));
-
-        $this->app->singleton(CommitmentManager::class, fn ($app) => new CommitmentManager(
-            clock: $app->make(Clock::class),
         ));
 
         // Fresh builder per subscribe (stateful).

@@ -14,7 +14,7 @@ it('runs all migrations and creates the core tables', function () {
     foreach ([
         'meteric_billing_accounts', 'meteric_products', 'meteric_prices',
         'meteric_meter_dimensions', 'meteric_subscriptions', 'meteric_subscription_items',
-        'meteric_addons', 'meteric_item_options', 'meteric_commitments', 'meteric_allowances',
+        'meteric_addons', 'meteric_item_options', 'meteric_allowances',
         'meteric_usage_records', 'meteric_billing_periods', 'meteric_charges',
         'meteric_invoices', 'meteric_invoice_lines', 'meteric_credit_notes',
         'meteric_payments', 'meteric_payment_allocations', 'meteric_coupons',

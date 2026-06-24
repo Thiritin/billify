@@ -11,7 +11,6 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Meteric\Contracts\InvoiceDriver;
 use Meteric\Enums\DowngradePolicy;
-use Meteric\Enums\Interval;
 use Meteric\Enums\InvoiceState;
 use Meteric\Enums\UpgradePolicy;
 use Meteric\Events\CreditNoteIssued;
@@ -25,7 +24,6 @@ use Meteric\Invoicing\IssuedInvoice;
 use Meteric\Models\Addon;
 use Meteric\Models\BillingAccount;
 use Meteric\Models\Charge;
-use Meteric\Models\Commitment;
 use Meteric\Models\CreditNote;
 use Meteric\Models\Invoice;
 use Meteric\Models\ItemOption;
@@ -37,7 +35,6 @@ use Meteric\Models\Subscription;
 use Meteric\Models\SubscriptionItem;
 use Meteric\Models\UsageRecord;
 use Meteric\Quoting\QuoteBuilder;
-use Meteric\Subscriptions\CommitmentManager;
 use Meteric\Subscriptions\ItemManager;
 use Meteric\Subscriptions\SubscriptionBuilder;
 use Meteric\Subscriptions\SubscriptionManager;
@@ -281,18 +278,6 @@ final class Meteric
     public function chooseOption(SubscriptionItem $item, ProductOptionValue $value, float $qty = 1, ?CarbonImmutable $at = null): ItemOption
     {
         return app(ItemManager::class)->chooseOption($item, $value, $qty, $at);
-    }
-
-    /** Add a term commitment (upfront + reduced rate) to an item. */
-    public function commit(SubscriptionItem $item, Interval $termInterval, int $termCount, Money $upfront, Money $rate, array $earlyTerm = [], ?CarbonImmutable $at = null): Commitment
-    {
-        return app(CommitmentManager::class)->commit($item, $termInterval, $termCount, $upfront, $rate, $earlyTerm, $at);
-    }
-
-    /** Terminate a commitment early; returns the fee charged. */
-    public function terminateCommitment(Commitment $commitment, ?CarbonImmutable $at = null): Money
-    {
-        return app(CommitmentManager::class)->terminate($commitment, $at);
     }
 
     /** The current billing cycle window for an item (query your usage API for this range). */

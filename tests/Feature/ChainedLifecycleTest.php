@@ -6,9 +6,7 @@ use Brick\Money\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Meteric\Enums\ChargeState;
-use Meteric\Enums\CommitmentState;
 use Meteric\Enums\DowngradePolicy;
-use Meteric\Enums\Interval;
 use Meteric\Enums\InvoiceState;
 use Meteric\Enums\ItemState;
 use Meteric\Enums\LineKind;
@@ -84,26 +82,22 @@ it('runs a full subscription lifecycle and reconciles the invoice', function () 
     Meteric::recordUsage($meterItem, 'traffic', 60, CarbonImmutable::parse('2026-06-10Z'));
     Meteric::recordUsage($meterItem, 'traffic', 40, CarbonImmutable::parse('2026-06-20Z'));
 
-    // 5. Take a commitment on the base item (no upfront here).
-    $commitment = Meteric::commit($baseItem, Interval::Year, 1, Money::of('0', 'EUR'), Money::of('20.00', 'EUR'), at: $mid);
-    expect($commitment->state)->toBe(CommitmentState::Active);
-
-    // 6. Upgrade then downgrade (downgrade deferred, no money mid-cycle).
+    // 5. Upgrade then downgrade (downgrade deferred, no money mid-cycle).
     $bigger = chainPrice(5000, 'bigger');
     Meteric::changePlan($baseItem->fresh()->setRelation('subscription', $sub), $bigger, at: $mid);
     $smaller = chainPrice(4000, 'smaller');
     Meteric::changePlan($baseItem->fresh()->setRelation('subscription', $sub), $smaller, DowngradePolicy::Defer, at: $mid);
 
-    // 7. Roll usage up into an in-arrears charge.
+    // 6. Roll usage up into an in-arrears charge.
     $window = new Period(CarbonImmutable::parse('2026-06-01Z'), CarbonImmutable::parse('2026-07-01Z'));
     $usageCharges = Meteric::rollupUsage($meterItem, $window);
     expect($usageCharges)->toHaveCount(1)
         ->and($usageCharges[0]->amount_minor)->toBe(5000); // 100 GB × €0.50
 
-    // 8. Renew into the next cycle (committed €20 rate applies to the base).
+    // 7. Renew into the next cycle (the deferred downgrade applies, base bills €40).
     Meteric::renew($sub->fresh(), CarbonImmutable::parse('2026-07-02T00:00:00Z'));
 
-    // 9. Invoice everything pending and assert coherence.
+    // 8. Invoice everything pending and assert coherence.
     $pendingBefore = Charge::where('subscription_id', $sub->id)->pending()->get();
     $expectedSubtotal = (int) $pendingBefore->sum('amount_minor');
 
@@ -122,8 +116,8 @@ it('runs a full subscription lifecycle and reconciles the invoice', function () 
         ->and($kinds)->toContain(LineKind::Option->value)
         ->and($kinds)->toContain(LineKind::Usage->value);
 
-    // The committed rate (€20) drove the renewal, not the €30 list price.
-    expect(Charge::where('subscription_id', $sub->id)->where('amount_minor', 2000)->where('kind', LineKind::Recurring->value)->exists())->toBeTrue();
+    // The deferred downgrade applied at the boundary: the renewal bills €40, not the €30 it started on.
+    expect(Charge::where('subscription_id', $sub->id)->where('amount_minor', 4000)->where('kind', LineKind::Recurring->value)->exists())->toBeTrue();
 
     // Invoice lines reconcile to the sum of their own amounts.
     expect((int) $invoice->lines->sum('amount_minor'))->toBe($invoice->subtotal_minor);

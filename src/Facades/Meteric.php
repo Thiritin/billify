@@ -14,8 +14,6 @@ use Meteric\Models\Payment;
 /**
  * @method static ?Invoice invoicePending(BillingAccount $account, ?string $currency = null)
  * @method static ?Invoice invoiceConsolidated(BillingAccount $payer, ?string $currency = null)
- * @method static \Meteric\Models\Commitment commit(\Meteric\Models\SubscriptionItem $item, \Meteric\Enums\Interval $termInterval, int $termCount, Money $upfront, Money $rate, array $earlyTerm = [], ?\Carbon\CarbonImmutable $at = null)
- * @method static Money terminateCommitment(\Meteric\Models\Commitment $commitment, ?\Carbon\CarbonImmutable $at = null)
  * @method static Payment recordPayment(Invoice $invoice, Money $amount, ?string $reference = null)
  * @method static \Meteric\Quoting\QuoteBuilder quote()
  * @method static \Meteric\Subscriptions\SubscriptionBuilder subscribe(?\Illuminate\Database\Eloquent\Model $customer = null)

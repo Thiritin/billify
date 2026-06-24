@@ -5,8 +5,6 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 use Meteric\Enums\BillingMode;
-use Meteric\Enums\CommitmentState;
-use Meteric\Enums\Interval;
 use Meteric\Enums\ItemState;
 use Meteric\Enums\OptionType;
 use Meteric\Enums\SubscriptionState;
@@ -104,26 +102,6 @@ return new class extends Migration
         });
         Pg::enumCheck('meteric_item_options', 'type', OptionType::class);
 
-        Schema::create('meteric_commitments', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
-            $table->foreignUuid('item_id')->constrained('meteric_subscription_items')->cascadeOnDelete();
-            $table->string('term_interval');
-            $table->integer('term_count');
-            $table->bigInteger('upfront_minor')->default(0);
-            $table->bigInteger('rate_minor');
-            $table->char('currency', 3);
-            $table->timestampTzRange('term');
-            $table->jsonb('early_term')->default(DB::raw("'{}'::jsonb"));
-            $table->string('state')->default(CommitmentState::Active->value);
-            $table->timestampTz('created_at')->useCurrent();
-
-            $table->index('item_id');
-        });
-        Pg::currencyCheck('meteric_commitments');
-        Pg::enumCheck('meteric_commitments', 'term_interval', Interval::class);
-        Pg::enumCheck('meteric_commitments', 'state', CommitmentState::class);
-        Pg::check('meteric_commitments', 'meteric_commit_term_pos', 'term_count > 0');
-
         Schema::create('meteric_allowances', function (Blueprint $table) {
             $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
             $table->foreignUuid('item_id')->constrained('meteric_subscription_items')->cascadeOnDelete();
@@ -140,7 +118,6 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('meteric_allowances');
-        Schema::dropIfExists('meteric_commitments');
         Schema::dropIfExists('meteric_item_options');
         Schema::dropIfExists('meteric_addons');
         Schema::dropIfExists('meteric_subscription_items');

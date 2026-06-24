@@ -165,17 +165,28 @@ interval, 5 minutes is the convention, and compute the percentile in your job
 over those samples, then record the one number. Meteric stores and prices it; the
 sampling cadence and statistic live in your collector.
 
-Close each cycle on its own schedule:
+Close cycles with the `meteric:bill` command. For each subscription whose period
+has ended it rolls up the elapsed usage window into charges, then renews (accrues
+the next cycle). It is idempotent through the billing guard, so schedule it as
+often as you like:
 
 ```php
-$schedule->call(function () {
-    foreach (Subscription::dueForRenewal(now())->get() as $sub) {
-        foreach ($sub->items as $item) {
-            Meteric::rollupUsage($item, $item->billingCycle());
-        }
-    }
-})->hourly();
+// routes/console.php or the scheduler
+Schedule::command('meteric:bill')->hourly();
+Schedule::command('meteric:mark-overdue')->daily();
 ```
+
+```
+meteric:bill            roll up due usage and renew due subscriptions
+        --invoice       also issue an invoice per affected account
+        --at=<datetime> run as of a specific time (default: now)
+```
+
+Leave `--invoice` off to invoice on your own schedule (summarized monthly), or
+pass it to bill immediately as cycles close. Mixed old and new rates inside a
+cycle bill correctly on their own: each usage record carries the dimension it was
+recorded against, so a rate change mid-cycle bills the earlier usage at the old
+rate and the later usage at the new one without any manual cutover.
 
 ## Hourly pricing
 

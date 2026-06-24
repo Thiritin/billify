@@ -35,6 +35,43 @@ Meteric::addAddon($item, $backupGold, group: 'backup');
 This is how you model "pick one" upsells where the customer can change their
 choice mid-cycle and the math stays clean.
 
+### Relative pricing
+
+A relative addon charges a percentage of the owning item's base price. Give it a
+`Price` with `pricing_model` of `Relative`, a `percent` (20 for 20%), and
+`amount_minor` of 0. Backups at 20% of the base server:
+
+```php
+use Meteric\Enums\PricingModel;
+use Meteric\Models\Price;
+
+$backupsPrice = Price::create([
+    'product_id' => $backupsProduct->id,
+    'currency' => 'EUR',
+    'pricing_model' => PricingModel::Relative,
+    'percent' => 20,        // 20% of the base
+    'amount_minor' => 0,
+]);
+
+$addon = Meteric::addAddon($item, $backupsPrice, group: 'backups');
+```
+
+The base is the owning item's `periodAmount()`, its current plan price times its
+quantity, read at billing time. The percentage recomputes against the new base
+after an upgrade or downgrade on the next cycle, with no manual step.
+
+The addon's own quantity is ignored for a relative price: a percentage of the
+base is one figure. Allowance, blocks, tiers, and caps do not apply either. A
+flat setup fee on the price still does.
+
+A relative addon needs a recurring base in the same currency. Booking one on a
+usage or metered base, or with a currency that does not match the base, throws
+`InvalidArgumentException`.
+
+The invoice line description reads like "20% of VPS XL", and the line's unit
+price shows the computed amount. `Meteric::removeAddon($addon)` credits the
+prorated unused part, the same as any other addon.
+
 ## Options
 
 An option is a configurable dimension on an item, gameserver slots, an OS

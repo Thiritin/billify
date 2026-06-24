@@ -22,7 +22,7 @@ helper methods you actually call.
 
 `meteric_prices`: versioned pricing for a product.
 
-- **Columns:** `currency`, `amount_minor`, `unit_rate` (string), `purpose`, `pricing_model`, `interval`, `interval_count`, `billing_mode`, `setup_fee_minor`, `cap_minor`, `min_charge_minor`, `included_qty`, `block_size`, `tiers` (array), `tax_inclusive`, `valid_from`, `valid_to`.
+- **Columns:** `currency`, `amount_minor`, `unit_rate` (string), `purpose`, `pricing_model`, `interval`, `interval_count`, `billing_mode`, `setup_fee_minor`, `cap_minor`, `min_charge_minor`, `included_qty`, `block_size`, `percent`, `tiers` (array), `tax_inclusive`, `valid_from`, `valid_to`.
 - **Casts:** `amount` is a `Money` over `amount_minor` + `currency`.
 - **Relationships:** `product()`.
 - **Helpers:**
@@ -30,6 +30,9 @@ helper methods you actually call.
   - `amountFor(float|int|string $qty): Money`: `qty × unit_rate`, or the flat amount when no rate.
   - `amountForQuantity(float $qty): Money`: `amountFor` after the `included_qty` allowance and `block_size` rounding, clamped to `min_charge_minor` and `cap_minor`. Options and addons bill through this.
   - `billedUnits(float $qty): float`: the post-allowance, post-block unit count `amountForQuantity` prices.
+  - `isRelative(): bool`: true for the `relative` model (a percentage of a base).
+  - `amountOfBase(Money $base): Money`: `percent` of `$base`, for relative addons.
+  - `percentLabel(): string`: `percent` without trailing zeros, e.g. `"20"` or `"12.5"`.
   - `recurrence(): RecurrenceRule`, `isRecurring(): bool`.
   - `hasSetupFee(): bool`, `setupFee(): Money`, `cap(): ?Money`.
 

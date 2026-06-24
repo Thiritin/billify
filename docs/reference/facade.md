@@ -41,6 +41,10 @@ Cancel at `'period_end'` (default) or `'now'`. No automatic refund.
 Book a prorated addon. Members of the same `group` are swapped (the old one is
 credited out).
 
+#### `removeAddon(Addon $addon, ?CarbonImmutable $at = null): void`
+
+Remove an addon mid-cycle with a prorated credit for the unused portion.
+
 #### `setOption(SubscriptionItem $item, string $key, string $value, string $type, ?Price $price = null, float $qty = 1, ?CarbonImmutable $at = null, ?float $min = null, ?float $max = null): ItemOption`
 
 Set a configurable option (slots, OS, toggle). Prorates the price delta when a

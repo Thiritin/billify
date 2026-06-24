@@ -105,6 +105,12 @@ is kept in the database even when a remote driver is primary. See
 ],
 ```
 
+`prefix` is prepended to every table name (`meteric_subscriptions`,
+`meteric_invoices`, and so on). Set it to your own prefix, or to `''` for
+unprefixed tables (`subscriptions`, `invoices`). Constraint and index names keep
+a fixed spelling regardless. Set the prefix before the first migration; changing
+it after the tables exist leaves the old tables behind.
+
 `morph_key` is the key type used for host references (the morph columns that
 point at your models) and Meteric's own primary keys. Set it to match your
 application's key type before the first migration.

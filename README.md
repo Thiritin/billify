@@ -10,8 +10,9 @@
 [![issues - meteric](https://img.shields.io/github/issues/thiritin/meteric)](https://github.com/thiritin/meteric/issues)
 
 Dynamic billing for Laravel hosting systems. Subscriptions, proration, usage
-metering, addons, commitments, and invoicing on PostgreSQL, built so a charge is
-never billed twice and never lost when your accounting system is down.
+metering, configurable options, addons, orders, and invoicing on PostgreSQL,
+built so a charge is never billed twice and never lost when your accounting
+system is down.
 
 ## Documentation
 

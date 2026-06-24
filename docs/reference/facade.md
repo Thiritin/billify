@@ -42,6 +42,12 @@ the subscription metadata under `cancellation`. See
 The next `$count` term boundaries that still satisfy the product's notice window,
 as a `list<CarbonImmutable>`. Render these as a "cancel at end of period N" choice.
 
+#### `processDueCancellations(?CarbonImmutable $at = null): int`
+
+Enact scheduled cancellations whose boundary has passed: cancel the subscription
+and fire `SubscriptionCanceled`. Returns the count. `meteric:run` calls this, so
+you rarely call it directly.
+
 ## Items: addons, options, quantity
 
 #### `addAddon(SubscriptionItem $item, Price $price, ?string $group = null, float $qty = 1, ?CarbonImmutable $at = null): Addon`
@@ -53,16 +59,19 @@ credited out).
 
 Remove an addon mid-cycle with a prorated credit for the unused portion.
 
-#### `setOption(SubscriptionItem $item, string $key, string $value, string $type, ?Price $price = null, float $qty = 1, ?CarbonImmutable $at = null, ?float $min = null, ?float $max = null): ItemOption`
+#### `setOption(SubscriptionItem $item, string $key, string $value, string $type, ?Price $price = null, float $qty = 1, ?CarbonImmutable $at = null, ?float $min = null, ?float $max = null, ?string $label = null): ItemOption`
 
 Set a configurable option (slots, OS, toggle). Prorates the price delta when a
 `price` is given; the option then recurs every renewal. `$min`/`$max` bound a
-quantity and throw `InvalidArgumentException` when violated.
+quantity and throw `InvalidArgumentException` when violated. `$value` is the raw
+value the provisioning system reads (e.g. `1024`); `$label` is the display value
+(e.g. `1 GB RAM`). Both snapshot onto the item, so deleting the catalog option
+later does not change the selection.
 
 #### `chooseOption(SubscriptionItem $item, ProductOptionValue $value, float $qty = 1, ?CarbonImmutable $at = null): ItemOption`
 
-Apply a declared catalog option value. Reads the key, type, bounds, and price off
-the `ProductOptionValue`, then calls `setOption`.
+Apply a declared catalog option value. Reads the key, type, bounds, price, raw
+value, and display label off the `ProductOptionValue`, then calls `setOption`.
 
 #### `setQuantity(SubscriptionItem $item, float $qty, ?CarbonImmutable $at = null): SubscriptionItem`
 

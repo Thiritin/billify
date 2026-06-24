@@ -27,6 +27,7 @@ use Meteric\Models\Charge;
 use Meteric\Models\CreditNote;
 use Meteric\Models\Invoice;
 use Meteric\Models\ItemOption;
+use Meteric\Models\Order;
 use Meteric\Models\Payment;
 use Meteric\Models\PaymentAllocation;
 use Meteric\Models\Price;
@@ -35,6 +36,8 @@ use Meteric\Models\Subscription;
 use Meteric\Models\SubscriptionItem;
 use Meteric\Models\UsageRecord;
 use Meteric\Quoting\QuoteBuilder;
+use Meteric\Subscriptions\CheckoutBuilder;
+use Meteric\Subscriptions\CheckoutManager;
 use Meteric\Subscriptions\ItemManager;
 use Meteric\Subscriptions\SubscriptionBuilder;
 use Meteric\Subscriptions\SubscriptionManager;
@@ -218,6 +221,41 @@ final class Meteric
     public function checkout(?Model $customer = null): SubscriptionBuilder
     {
         return $this->subscribe($customer);
+    }
+
+    /**
+     * Begin a persisted order (a frozen, immutable checkout). Build the cart,
+     * end with ->create() to store a pending Order, then pay/convert it later.
+     */
+    public function order(?Model $customer = null): CheckoutBuilder
+    {
+        $builder = app(CheckoutBuilder::class);
+
+        return $customer ? $builder->for($customer) : $builder;
+    }
+
+    /** Convert a pending order into a real subscription (no billing). */
+    public function convertOrder(Order $order, ?CarbonImmutable $at = null): Subscription
+    {
+        return app(CheckoutManager::class)->convert($order, $at);
+    }
+
+    /** Convert + bill an order: issue the frozen charges and record full payment. */
+    public function payOrder(Order $order, ?CarbonImmutable $at = null): ?Invoice
+    {
+        return app(CheckoutManager::class)->pay($order, $at);
+    }
+
+    /** Cancel a pending order. No-op once terminal. */
+    public function cancelOrder(Order $order, ?CarbonImmutable $at = null): Order
+    {
+        return app(CheckoutManager::class)->cancel($order, $at);
+    }
+
+    /** Expire pending orders past their expiry. Returns the count. */
+    public function expireOrders(?CarbonImmutable $at = null): int
+    {
+        return app(CheckoutManager::class)->expireDue($at);
     }
 
     /** Accrue the next cycle for all due items of a subscription (idempotent). */

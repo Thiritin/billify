@@ -19,8 +19,11 @@ use Meteric\Contracts\InvoiceDriver;
 use Meteric\Contracts\TaxResolver;
 use Meteric\Invoicing\Drivers\DatabaseInvoiceDriver;
 use Meteric\Invoicing\Drivers\LexofficeInvoiceDriver;
+use Meteric\Pricing\CheckoutPricer;
 use Meteric\Proration\Prorator;
 use Meteric\Quoting\QuoteBuilder;
+use Meteric\Subscriptions\CheckoutBuilder;
+use Meteric\Subscriptions\CheckoutManager;
 use Meteric\Subscriptions\ItemManager;
 use Meteric\Subscriptions\SubscriptionBuilder;
 use Meteric\Subscriptions\SubscriptionManager;
@@ -126,6 +129,24 @@ final class MetericServiceProvider extends ServiceProvider
             planner: $app->make(PeriodPlanner::class),
             accruer: $app->make(ChargeAccruer::class),
             defaultCurrency: $app['config']['meteric.currency'] ?? 'EUR',
+        ));
+
+        $this->app->singleton(CheckoutPricer::class, fn ($app) => new CheckoutPricer(
+            planner: $app->make(PeriodPlanner::class),
+            prorator: $app->make(Prorator::class),
+            tax: $app->make(TaxResolver::class),
+        ));
+
+        $this->app->singleton(CheckoutManager::class, fn ($app) => new CheckoutManager(
+            clock: $app->make(Clock::class),
+        ));
+
+        // Fresh builder per order (stateful).
+        $this->app->bind(CheckoutBuilder::class, fn ($app) => new CheckoutBuilder(
+            clock: $app->make(Clock::class),
+            pricer: $app->make(CheckoutPricer::class),
+            defaultCurrency: $app['config']['meteric.currency'] ?? 'EUR',
+            defaultTtlMinutes: $app['config']['meteric.checkout.ttl_minutes'] ?? null,
         ));
     }
 

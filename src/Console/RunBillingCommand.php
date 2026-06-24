@@ -54,8 +54,9 @@ final class RunBillingCommand extends Command
         }
 
         $overdue = $meteric->markOverdue();
+        $expired = $meteric->expireOrders($at);
 
-        $this->info("meteric:run done: {$rolled} usage + {$renewed} renewal charge(s), {$invoiced} invoice(s), {$overdue} newly overdue.");
+        $this->info("meteric:run done: {$rolled} usage + {$renewed} renewal charge(s), {$invoiced} invoice(s), {$overdue} newly overdue, {$expired} order(s) expired.");
 
         return self::SUCCESS;
     }

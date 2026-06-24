@@ -111,6 +111,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Checkout (persisted orders)
+    |--------------------------------------------------------------------------
+    | Default minutes a pending order stays open before the meteric:run sweep
+    | expires it. Null = orders never expire. Override per order with
+    | ->expiresIn($minutes) on the builder.
+    */
+    'checkout' => [
+        'ttl_minutes' => env('METERIC_CHECKOUT_TTL') !== null ? (int) env('METERIC_CHECKOUT_TTL') : null,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Ledger (double-entry audit)
     |--------------------------------------------------------------------------
     */

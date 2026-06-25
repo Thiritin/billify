@@ -16,4 +16,18 @@ enum LineKind: string
     case Option = 'option';
     case Discount = 'discount';
     case Credit = 'credit';
+
+    /**
+     * Whether this kind is a product's base line (the parent), as opposed to a
+     * configurable option, addon, setup, usage, discount, or credit sub-item.
+     * A custom driver uses this to pick the parent charge within a line_group
+     * and treat the rest as sub-items.
+     */
+    public function isBaseLine(): bool
+    {
+        return match ($this) {
+            self::Recurring, self::Prorated, self::FullPeriod, self::OneOff => true,
+            default => false,
+        };
+    }
 }

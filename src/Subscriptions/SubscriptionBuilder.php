@@ -213,6 +213,7 @@ final class SubscriptionBuilder
             'state' => ChargeState::Pending,
             'title' => $item->lineTitle(),
             'group' => $item->group,
+            'line_group' => $item->id,
             'description' => $price->purpose->value === 'setup' ? 'Setup' : null,
             'quantity' => $item->quantity,
             'unit_minor' => $price->amount_minor,

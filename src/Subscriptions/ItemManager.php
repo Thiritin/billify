@@ -196,6 +196,7 @@ final class ItemManager
             'state' => ChargeState::Pending,
             'title' => $item->lineTitle(),
             'group' => $item->group,
+            'line_group' => $item->id,
             'description' => $desc,
             'quantity' => 1,
             'unit_minor' => $amount->getMinorAmount()->toInt(),

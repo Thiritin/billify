@@ -15,6 +15,7 @@ use Meteric\Support\Period;
  * @property LineKind $kind
  * @property ?string $title
  * @property ?string $group
+ * @property ?string $line_group
  * @property ?string $description
  * @property ?string $unit
  * @property float $quantity

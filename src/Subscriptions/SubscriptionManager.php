@@ -477,6 +477,7 @@ final class SubscriptionManager
             'state' => ChargeState::Pending,
             'title' => $item->lineTitle(),
             'group' => $item->group,
+            'line_group' => $item->id,
             'description' => $desc,
             'quantity' => $item->quantity,
             'unit' => $item->price->interval?->value,

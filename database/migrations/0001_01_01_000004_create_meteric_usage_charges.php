@@ -63,6 +63,7 @@ return new class extends Migration
             $table->string('state')->default(ChargeState::Pending->value);
             $table->string('title')->nullable();                 // line name (product + resource)
             $table->string('group')->nullable();                 // invoice section heading (e.g. Domains, Usage)
+            $table->uuid('line_group')->nullable();              // owning subscription item id: links a base line to its options/addons
             $table->text('description')->nullable();              // multi-line detail (period, usage breakdown)
             $table->decimal('quantity', 20, 6)->default(1);
             $table->string('unit')->nullable();                  // quantity unit label (month, hours, GB)
@@ -80,6 +81,7 @@ return new class extends Migration
             $table->index(['account_id', 'currency'])->where("state = 'pending'");  // invoicing run hot path
             $table->index(['origin_type', 'origin_id']);
             $table->index('invoice_id');
+            $table->index('line_group');
         });
         Pg::currencyCheck(Pg::table('charges'));
         Pg::enumCheck(Pg::table('charges'), 'state', ChargeState::class);

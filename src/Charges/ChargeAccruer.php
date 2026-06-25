@@ -58,6 +58,7 @@ final class ChargeAccruer
                     'state' => ChargeState::Pending,
                     'title' => $item->lineTitle(),
                     'group' => $item->group,
+                    'line_group' => $item->id,
                     'description' => $pp->period->label(),    // the service period, on its own line
                     'quantity' => $item->quantity,
                     'unit' => $price->interval?->value,   // month, year, ...
@@ -111,6 +112,7 @@ final class ChargeAccruer
                 'state' => ChargeState::Pending,
                 'title' => $item->lineTitle(),
                 'group' => $item->group,
+                'line_group' => $item->id,
                 'description' => ucfirst($option->key),
                 'quantity' => $option->quantity,
                 'unit' => $price->interval?->value,
@@ -142,6 +144,7 @@ final class ChargeAccruer
                 'state' => ChargeState::Pending,
                 'title' => $item->lineTitle(),
                 'group' => $item->group,
+                'line_group' => $item->id,
                 'description' => $relative
                     ? $price->percentLabel().'% of '.($item->product->name ?? 'plan')
                     : ($addon->product->name ?? 'Addon'),

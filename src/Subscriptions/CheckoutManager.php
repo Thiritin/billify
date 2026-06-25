@@ -297,6 +297,7 @@ final class CheckoutManager
             'state' => ChargeState::Pending,
             'title' => $item->lineTitle(),
             'group' => $item->group,
+            'line_group' => $item->id,
             'description' => $description,
             'quantity' => $quantity,
             'unit_minor' => $amountMinor,

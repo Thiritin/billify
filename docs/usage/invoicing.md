@@ -71,6 +71,59 @@ local invoice is the source of truth, so if the Lexware Office call fails it
 re-throws without rolling the local invoice back. See
 [Lexware Office (lexoffice)](#lexware-office-lexoffice) below.
 
+## Rendering options and sub-items
+
+A driver's `issue(InvoiceDraft $draft)` receives `$draft->charges`, a flat
+collection of `Charge` rows. A product and its configurable options and addons
+arrive as separate charges. Two fields tie them together:
+
+- `line_group`: the owning subscription item id. Every charge a product produces
+  (the base line, each option, each addon, proration, setup, usage) carries the
+  same `line_group`. Account-level charges with no item have a null `line_group`.
+- `kind`: a `LineKind`. Call `$charge->kind->isBaseLine()` to find the product's
+  parent line. It returns true for `Recurring`, `Prorated`, `FullPeriod`, and
+  `OneOff`, and false for `Option`, `Addon`, `Setup`, `Usage`, `Discount`, and
+  `Credit`.
+
+Group the charges by `line_group` to reconstruct a product, then pick the base
+line as the parent and treat the rest as sub-items:
+
+```php
+foreach ($draft->charges->groupBy('line_group') as $group) {
+    $parent = $group->firstWhere(fn ($c) => $c->kind->isBaseLine()) ?? $group->first();
+    $subItems = $group->reject(fn ($c) => $c === $parent);
+    // render $parent as the product line, $subItems nested under it
+}
+```
+
+A charge with a null `line_group` is its own line. Render the result itemized
+(one line per charge), nested (sub-items under the parent), or consolidated (one
+line per product) as the target system supports.
+
+### Built-in consolidated mode
+
+The `database` and `lexoffice` drivers do this for you. Set the line mode:
+
+```php
+// config/meteric.php
+'invoice' => [
+    'line_mode' => 'consolidated', // itemized (default) | consolidated
+],
+```
+
+`itemized` writes one invoice line per charge. `consolidated` writes one line
+per `line_group`: the base charge sets the title, unit, quantity, and period;
+the options and addons fold into the line. Their amounts sum into the line total,
+their labels and amounts append to the line description, and a structured copy
+lands in `metadata['items']` (each entry has `kind`, `title`, `description`,
+`amount_minor`) so a template renders the sub-items without parsing text.
+
+Tax is recomputed on the summed net, so the invoice subtotal, tax, and total
+match the itemized invoice for the same charges. Every charge still flips to
+`invoiced`, including the options and addons that no longer have their own line.
+The `lexoffice` driver wraps the `database` driver, so it emits one Lexware
+Office line item per product with the sub-items in that line's description.
+
 ## Lexware Office (lexoffice)
 
 To send finalized invoices and credit notes to Lexware Office, set the driver

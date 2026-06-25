@@ -258,3 +258,32 @@ it('refuses to void a finalized lexoffice invoice and points at credit notes', f
 
     expect(fn () => $driver->void($issued))->toThrow(LogicException::class);
 });
+
+it('emits one lexoffice line per product with sub-items in its description (consolidated)', function () {
+    config(['meteric.invoice.line_mode' => 'consolidated']);
+
+    Http::fake([
+        'api.lexoffice.io/v1/invoices*' => Http::response(lexInvoiceResponse(), 201),
+    ]);
+
+    $account = lexAccount();
+    $group = (string) Str::uuid();
+
+    $base = lexCharge($account, 1000, 'VPS XL', 'Hosting plan');
+    $base->forceFill(['line_group' => $group, 'kind' => LineKind::Recurring])->save();
+
+    $option = lexCharge($account, 300, 'VPS XL', 'Extra slots');
+    $option->forceFill(['line_group' => $group, 'kind' => LineKind::Option])->save();
+
+    lexDriver()->issue(lexDraft($account));
+
+    Http::assertSent(function ($request) {
+        $body = $request->data();
+
+        return count($body['lineItems']) === 1
+            && $body['lineItems'][0]['name'] === 'VPS XL'
+            && str_contains($body['lineItems'][0]['description'], 'Hosting plan')
+            && str_contains($body['lineItems'][0]['description'], 'Extra slots')
+            && abs($body['lineItems'][0]['unitPrice']['netAmount'] - 13.0) < 0.001;   // 10.00 + 3.00
+    });
+});

@@ -1,8 +1,10 @@
 # Invoicing
 
-An invoice is a document that bills a set of charges. A `Charge` is the source of
-truth for money owed; an invoice references charges through its lines. Create one
-from pending charges, or build it line by line.
+An invoice is a document made of line items. A line item can reference a `Charge`
+(the record of money owed), or stand alone as a manual line. Meteric creates
+charges and invoices for you (subscriptions and usage accrue charges; a billing
+run invoices them), and you can create either by hand: a `Charge` directly, or an
+invoice line by line.
 
 ## Creating invoices
 

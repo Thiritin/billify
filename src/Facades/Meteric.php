@@ -32,7 +32,7 @@ use Meteric\Models\Payment;
  * @method static \Meteric\Models\Subscription pause(\Meteric\Models\Subscription $sub)
  * @method static \Meteric\Models\Subscription resume(\Meteric\Models\Subscription $sub, ?\Carbon\CarbonImmutable $at = null)
  * @method static int markOverdue(?\Carbon\CarbonImmutable $at = null)
- * @method static Invoice voidInvoice(Invoice $invoice)
+ * @method static Invoice voidInvoice(Invoice $invoice, \Meteric\Enums\VoidCharges $charges = \Meteric\Enums\VoidCharges::Keep)
  * @method static \Meteric\Models\CreditNote creditNote(Invoice $invoice, Money $amount, ?string $reason = null)
  * @method static \Meteric\Models\Addon addAddon(\Meteric\Models\SubscriptionItem $item, \Meteric\Models\Price $price, ?string $group = null, float $qty = 1, ?\Carbon\CarbonImmutable $at = null)
  * @method static void removeAddon(\Meteric\Models\Addon $addon, ?\Carbon\CarbonImmutable $at = null)

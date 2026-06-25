@@ -10,9 +10,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Meteric\Contracts\InvoiceDriver;
+use Meteric\Enums\ChargeState;
 use Meteric\Enums\DowngradePolicy;
 use Meteric\Enums\InvoiceState;
 use Meteric\Enums\UpgradePolicy;
+use Meteric\Enums\VoidCharges;
 use Meteric\Events\CreditNoteIssued;
 use Meteric\Events\InvoiceIssued;
 use Meteric\Events\InvoicePaid;
@@ -142,15 +144,39 @@ final class Meteric
         return $note;
     }
 
-    /** Void an issued, unpaid invoice. */
-    public function voidInvoice(Invoice $invoice): Invoice
+    /**
+     * Void (cancel) an issued, unpaid invoice: an invoice made in error, before
+     * any money moved. Refuses if the invoice has a payment (issue a credit note
+     * to reverse a paid invoice instead). Routes through the driver, which may
+     * void a draft/remote record or refuse (lexoffice forbids voiding a finalized
+     * document).
+     *
+     * $charges decides the charges' fate: Keep (default) leaves them as-is for a
+     * manual re-issue (e.g. a wrong address); Release returns them to pending to
+     * bill again; Discard voids them (they were the error).
+     */
+    public function voidInvoice(Invoice $invoice, VoidCharges $charges = VoidCharges::Keep): Invoice
     {
         if ($invoice->paid_minor > 0) {
             throw new \LogicException('Cannot void an invoice with payments. Issue a credit note instead.');
         }
 
-        $invoice->forceFill(['state' => InvoiceState::Void])->save();
-        InvoiceVoided::dispatch($invoice);
+        // If the driver throws (e.g. lexoffice refusing a finalized document),
+        // nothing below runs and the invoice is left untouched.
+        $this->driver->void(new IssuedInvoice($invoice->id, $invoice->number, $invoice->external_id, $invoice->external_url));
+
+        DB::transaction(function () use ($invoice, $charges): void {
+            if ($charges !== VoidCharges::Keep) {
+                foreach ($invoice->charges as $charge) {
+                    $charges === VoidCharges::Discard
+                        ? $charge->void()
+                        : $charge->forceFill(['state' => ChargeState::Pending, 'invoice_id' => null])->save();
+                }
+            }
+            $invoice->forceFill(['state' => InvoiceState::Void])->save();
+        });
+
+        InvoiceVoided::dispatch($invoice->refresh());
 
         return $invoice;
     }

@@ -215,9 +215,28 @@ so the credit note reverses the same VAT the invoice charged, and fires a
 
 ### Void or credit note
 
-`Meteric::voidInvoice($invoice)` only works on an unpaid invoice and refuses once
-any payment exists. Correct a paid or finalized invoice with a credit note
-instead.
+`Meteric::voidInvoice($invoice)` cancels an invoice issued in error, before any
+money moves. It works only on an unpaid invoice and refuses once any payment
+exists; correct a paid or finalized invoice with a credit note instead.
+
+A second argument decides what happens to the invoice's charges:
+
+```php
+use Meteric\Enums\VoidCharges;
+
+Meteric::voidInvoice($invoice);                        // Keep (default)
+Meteric::voidInvoice($invoice, VoidCharges::Release);  // back to pending
+Meteric::voidInvoice($invoice, VoidCharges::Discard);  // void the charges too
+```
+
+- `Keep` (default) leaves the charges as they are. Use it when only the document
+  was wrong (a wrong address, say) and an employee re-issues it manually.
+- `Release` detaches the charges and returns them to pending so the next run
+  bills them onto a fresh invoice.
+- `Discard` voids the charges too, when the charges themselves were the error.
+
+Voiding routes through the driver, so the Lexware Office driver voids a draft
+that never reached the API and refuses a finalized one (use a credit note).
 
 With the [Lexware Office driver](#lexware-office-lexoffice), `creditNote()` also
 POSTs a real credit-note document to lexoffice (`POST /v1/credit-notes?finalize=true`)

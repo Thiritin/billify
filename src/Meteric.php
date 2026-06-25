@@ -9,7 +9,10 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Meteric\Contracts\InvoiceDriver;
+use Meteric\Enums\BillingMode;
+use Meteric\Enums\ChargeState;
 use Meteric\Enums\DowngradePolicy;
 use Meteric\Enums\InvoiceState;
 use Meteric\Enums\LineKind;
@@ -85,6 +88,30 @@ final class Meteric
         $charges = $this->pendingCharges($payer->payerScopeIds(), $currency);
 
         return $this->issue($payer, $currency, $charges);
+    }
+
+    /**
+     * Add a one-off custom charge to an account. It accrues as `pending`, so the
+     * next billing run (or invoicePending) bills it on the account's invoice. For
+     * a standalone document right now, build one with createInvoice instead.
+     */
+    public function charge(BillingAccount $account, Money $amount, string $title, ?string $group = null, ?string $description = null, LineKind $kind = LineKind::OneOff): Charge
+    {
+        return Charge::create([
+            'account_id' => $account->id,
+            'origin_type' => 'manual',
+            'origin_id' => (string) Str::uuid(),
+            'kind' => $kind->value,
+            'billing_mode' => BillingMode::InAdvance->value,
+            'state' => ChargeState::Pending->value,
+            'title' => $title,
+            'group' => $group,
+            'description' => $description,
+            'quantity' => 1,
+            'amount_minor' => $amount->getMinorAmount()->toInt(),
+            'currency' => $amount->getCurrency()->getCurrencyCode(),
+            'idempotency_key' => (string) Str::uuid(),
+        ]);
     }
 
     /** @param  Collection<int,Charge>  $charges */

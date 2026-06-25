@@ -8,7 +8,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Meteric\Enums\ChargeState;
 use Meteric\Enums\InvoiceState;
-use Meteric\Enums\VoidCharges;
 use Meteric\Events\InvoiceVoided;
 use Meteric\Facades\Meteric;
 use Meteric\Models\BillingAccount;
@@ -32,37 +31,17 @@ function vinInvoice(): array
     return [$account, $invoice];
 }
 
-it('keeps the charges by default for a manual re-issue', function () {
-    [$account, $invoice] = vinInvoice();
+it('voids an unpaid invoice and leaves the charges attached', function () {
+    [, $invoice] = vinInvoice();
     expect($invoice)->not->toBeNull()
         ->and(Charge::where('invoice_id', $invoice->id)->count())->toBeGreaterThan(0);
 
     Event::fake([InvoiceVoided::class]);
-    Meteric::voidInvoice($invoice);   // default Keep
+    Meteric::voidInvoice($invoice);
 
     expect($invoice->fresh()->state)->toBe(InvoiceState::Void)
         ->and(Charge::where('invoice_id', $invoice->id)->where('state', ChargeState::Invoiced->value)->count())->toBeGreaterThan(0);  // untouched
     Event::assertDispatched(InvoiceVoided::class);
-});
-
-it('releases charges to pending when asked', function () {
-    [$account, $invoice] = vinInvoice();
-
-    Meteric::voidInvoice($invoice, VoidCharges::Release);
-
-    expect($invoice->fresh()->state)->toBe(InvoiceState::Void)
-        ->and(Charge::where('invoice_id', $invoice->id)->count())->toBe(0)               // detached
-        ->and(Charge::where('account_id', $account->id)->where('state', ChargeState::Pending->value)->count())->toBeGreaterThan(0);  // re-billable
-});
-
-it('discards the charges when asked', function () {
-    [$account, $invoice] = vinInvoice();
-
-    Meteric::voidInvoice($invoice, VoidCharges::Discard);
-
-    expect($invoice->fresh()->state)->toBe(InvoiceState::Void)
-        ->and(Charge::where('account_id', $account->id)->where('state', ChargeState::Pending->value)->count())->toBe(0)
-        ->and(Charge::where('account_id', $account->id)->where('state', ChargeState::Void->value)->count())->toBeGreaterThan(0);
 });
 
 it('refuses to void a paid invoice and points to a credit note', function () {

@@ -14,13 +14,13 @@ use Meteric\Enums\ChargeState;
 use Meteric\Enums\DowngradePolicy;
 use Meteric\Enums\InvoiceState;
 use Meteric\Enums\UpgradePolicy;
-use Meteric\Enums\VoidCharges;
 use Meteric\Events\CreditNoteIssued;
 use Meteric\Events\InvoiceIssued;
 use Meteric\Events\InvoicePaid;
 use Meteric\Events\InvoicePartiallyPaid;
 use Meteric\Events\InvoiceVoided;
 use Meteric\Invoicing\CreditNoteDraft;
+use Meteric\Invoicing\Drivers\DatabaseInvoiceDriver;
 use Meteric\Invoicing\InvoiceDraft;
 use Meteric\Invoicing\IssuedInvoice;
 use Meteric\Models\Addon;
@@ -151,11 +151,10 @@ final class Meteric
      * void a draft/remote record or refuse (lexoffice forbids voiding a finalized
      * document).
      *
-     * $charges decides the charges' fate: Keep (default) leaves them as-is for a
-     * manual re-issue (e.g. a wrong address); Release returns them to pending to
-     * bill again; Discard voids them (they were the error).
+     * The charges stay attached to the now-void invoice. Move them with
+     * transferCharges (e.g. onto a fresh draft for a wrong-address re-issue).
      */
-    public function voidInvoice(Invoice $invoice, VoidCharges $charges = VoidCharges::Keep): Invoice
+    public function voidInvoice(Invoice $invoice): Invoice
     {
         if ($invoice->paid_minor > 0) {
             throw new \LogicException('Cannot void an invoice with payments. Issue a credit note instead.');
@@ -165,20 +164,130 @@ final class Meteric
         // nothing below runs and the invoice is left untouched.
         $this->driver->void(new IssuedInvoice($invoice->id, $invoice->number, $invoice->external_id, $invoice->external_url));
 
-        DB::transaction(function () use ($invoice, $charges): void {
-            if ($charges !== VoidCharges::Keep) {
-                foreach ($invoice->charges as $charge) {
-                    $charges === VoidCharges::Discard
-                        ? $charge->void()
-                        : $charge->forceFill(['state' => ChargeState::Pending, 'invoice_id' => null])->save();
-                }
-            }
-            $invoice->forceFill(['state' => InvoiceState::Void])->save();
-        });
+        $invoice->forceFill(['state' => InvoiceState::Void])->save();
 
         InvoiceVoided::dispatch($invoice->refresh());
 
         return $invoice;
+    }
+
+    /**
+     * Open an editable Draft invoice for an account: pulls the account's pending
+     * charges (one currency), attaches them, and builds the lines. The charges
+     * become `invoiced` so they leave the pending pool, but no document is sent
+     * and no due date or InvoiceIssued event is set. An account with nothing
+     * pending yields an empty draft with zero totals. Finalize it later with
+     * finalizeInvoice.
+     */
+    public function draftInvoice(BillingAccount $account, ?string $currency = null): Invoice
+    {
+        $currency ??= $account->currency;
+
+        return DB::transaction(function () use ($account, $currency): Invoice {
+            $invoice = Invoice::create([
+                'account_id' => $account->id,
+                'customer_type' => $account->owner_type,
+                'customer_id' => $account->owner_id,
+                'driver' => config('meteric.invoice.driver', 'database'),
+                'state' => InvoiceState::Draft,
+                'currency' => $currency,
+            ]);
+
+            $charges = $this->pendingCharges([$account->id], $currency);
+            foreach ($charges as $charge) {
+                $charge->markInvoiced($invoice);
+            }
+
+            $this->rebuildLines($invoice);
+
+            return $invoice->refresh();
+        });
+    }
+
+    /**
+     * Clone an invoice's header into a new empty Draft (account, customer,
+     * currency, and a copy of its metadata). No charges and no lines come over.
+     * Carry the charges with transferCharges, then void the source.
+     */
+    public function copyInvoice(Invoice $source): Invoice
+    {
+        return Invoice::create([
+            'account_id' => $source->account_id,
+            'customer_type' => $source->customer_type,
+            'customer_id' => $source->customer_id,
+            'driver' => $source->driver,
+            'state' => InvoiceState::Draft,
+            'currency' => $source->currency,
+            'metadata' => $source->metadata,
+        ]);
+    }
+
+    /**
+     * Move $from's charges onto $to, then rebuild the affected drafts' lines.
+     * $to must be a Draft (or null to detach the charges back to pending). $from
+     * must be a Draft or Void invoice: void an issued invoice before moving its
+     * charges. A Void $from keeps its historical lines (a frozen record); a Draft
+     * $from is rebuilt to reflect the charges it lost.
+     */
+    public function transferCharges(Invoice $from, ?Invoice $to): void
+    {
+        if ($to !== null && $to->state !== InvoiceState::Draft) {
+            throw new \LogicException('Charges can only move onto a draft invoice.');
+        }
+
+        if ($from->state !== InvoiceState::Draft && $from->state !== InvoiceState::Void) {
+            throw new \LogicException('Void the invoice before moving its charges.');
+        }
+
+        DB::transaction(function () use ($from, $to): void {
+            foreach ($from->charges()->get() as $charge) {
+                $to !== null
+                    ? $charge->forceFill(['invoice_id' => $to->id, 'state' => ChargeState::Invoiced])->save()
+                    : $charge->forceFill(['invoice_id' => null, 'state' => ChargeState::Pending])->save();
+            }
+
+            if ($to !== null) {
+                $this->rebuildLines($to);
+            }
+
+            if ($from->state === InvoiceState::Draft) {
+                $this->rebuildLines($from);
+            }
+        });
+    }
+
+    /**
+     * Finalize a Draft invoice: send its current lines via the driver, set the
+     * due date (config meteric.invoice.net_days, default 14), and fire
+     * InvoiceIssued. The charges are already invoiced and attached, so payment
+     * and overdue tracking apply from here. A driver failure leaves the draft
+     * untouched.
+     */
+    public function finalizeInvoice(Invoice $draft): Invoice
+    {
+        if ($draft->state !== InvoiceState::Draft) {
+            throw new \LogicException('Only a draft invoice can be finalized.');
+        }
+
+        // Driver call is the failure boundary. If it throws, nothing below runs.
+        $this->driver->finalize($draft);
+
+        $invoice = $draft->refresh();
+        if ($invoice->due_at === null) {
+            $net = (int) config('meteric.invoice.net_days', 14);
+            $invoice->forceFill(['due_at' => ($invoice->issued_at ?? now())->addDays($net)])->save();
+        }
+
+        $invoice->refresh();
+        InvoiceIssued::dispatch($invoice);
+
+        return $invoice;
+    }
+
+    /** Rebuild a draft invoice's lines from its attached charges (via the database driver). */
+    private function rebuildLines(Invoice $invoice): void
+    {
+        app(DatabaseInvoiceDriver::class)->rebuildLines($invoice);
     }
 
     /**

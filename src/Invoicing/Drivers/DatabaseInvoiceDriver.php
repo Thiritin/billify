@@ -33,8 +33,6 @@ final class DatabaseInvoiceDriver implements InvoiceDriver
     public function issue(InvoiceDraft $draft): IssuedInvoice
     {
         return DB::transaction(function () use ($draft): IssuedInvoice {
-            $taxContext = $draft->account->taxContext();
-
             $invoice = Invoice::create([
                 'account_id' => $draft->account->id,
                 'customer_type' => $draft->account->owner_type,
@@ -45,51 +43,16 @@ final class DatabaseInvoiceDriver implements InvoiceDriver
                 'idempotency_key' => $draft->idempotencyKey,
             ]);
 
-            $subtotal = Money::ofMinor(0, $draft->currency);
-            $taxTotal = Money::ofMinor(0, $draft->currency);
-            $sort = 0;
-
-            $consolidated = config('meteric.invoice.line_mode') === 'consolidated';
-
-            foreach ($this->lineGroups($draft->charges, $consolidated) as $group) {
-                $base = $this->baseCharge($group);
-                $net = Money::ofMinor((int) $group->sum('amount_minor'), $draft->currency);
-                $taxResult = $this->tax->resolve($net, $taxContext);
-
-                InvoiceLine::create([
-                    'invoice_id' => $invoice->id,
-                    'charge_id' => $base->id,
-                    'kind' => $base->kind,
-                    'title' => $base->title,
-                    'group' => $base->group,
-                    'line_group' => $base->line_group,
-                    'description' => $consolidated ? $this->consolidatedDescription($base, $group) : $base->description,
-                    'quantity' => $base->quantity,
-                    'unit' => $base->unit,
-                    'unit_minor' => $consolidated && $group->count() > 1 ? null : $base->unit_minor,
-                    'unit_rate' => $consolidated && $group->count() > 1 ? null : $base->unit_rate,
-                    'amount_minor' => $net->getMinorAmount()->toInt(),
-                    'tax_rate' => $taxResult->rate,
-                    'tax_minor' => $taxResult->amount->getMinorAmount()->toInt(),
-                    'tax_label' => $taxResult->label,
-                    'currency' => $draft->currency,
-                    'covers' => $base->covers,
-                    'dimension_id' => $base->dimension_id,
-                    'metadata' => $consolidated ? $this->consolidatedMetadata($base, $group) : $base->metadata,
-                    'sort' => $sort++,
-                ]);
-
-                $subtotal = $subtotal->plus($net);
-                $taxTotal = $taxTotal->plus($taxResult->amount);
+            // Attach the draft's charges so rebuildLines reads them as the source.
+            foreach ($draft->charges as $charge) {
+                $charge->forceFill(['invoice_id' => $invoice->id])->save();
             }
 
-            $total = $subtotal->plus($taxTotal);
+            $invoice->setRelation('charges', $draft->charges->values());
+            $this->rebuildLines($invoice);
 
             // Financials are set while still draft, then frozen by flipping to open.
             $invoice->forceFill([
-                'subtotal_minor' => $subtotal->getMinorAmount()->toInt(),
-                'tax_minor' => $taxTotal->getMinorAmount()->toInt(),
-                'total_minor' => $total->getMinorAmount()->toInt(),
                 'number' => $this->nextNumber(),
                 'state' => InvoiceState::Open,
                 'issued_at' => now(),
@@ -100,6 +63,92 @@ final class DatabaseInvoiceDriver implements InvoiceDriver
                 number: $invoice->number,
             );
         });
+    }
+
+    /**
+     * Rebuild a Draft invoice's lines from its currently attached charges.
+     * Deletes the existing lines, rebuilds them (itemized or consolidated per
+     * config('meteric.invoice.line_mode')), and recomputes the invoice totals.
+     * Only valid while the invoice is Draft (the trigger freezes issued lines).
+     */
+    public function rebuildLines(Invoice $invoice): void
+    {
+        if ($invoice->state !== InvoiceState::Draft) {
+            throw new \LogicException('Cannot rebuild lines of a non-draft invoice.');
+        }
+
+        $taxContext = $invoice->account->taxContext();
+        $currency = $invoice->currency;
+
+        $invoice->lines()->delete();
+
+        $charges = $invoice->charges()->orderBy('created_at')->get();
+
+        $subtotal = Money::ofMinor(0, $currency);
+        $taxTotal = Money::ofMinor(0, $currency);
+        $sort = 0;
+
+        $consolidated = config('meteric.invoice.line_mode') === 'consolidated';
+
+        foreach ($this->lineGroups($charges, $consolidated) as $group) {
+            $base = $this->baseCharge($group);
+            $net = Money::ofMinor((int) $group->sum('amount_minor'), $currency);
+            $taxResult = $this->tax->resolve($net, $taxContext);
+
+            InvoiceLine::create([
+                'invoice_id' => $invoice->id,
+                'charge_id' => $base->id,
+                'kind' => $base->kind,
+                'title' => $base->title,
+                'group' => $base->group,
+                'line_group' => $base->line_group,
+                'description' => $consolidated ? $this->consolidatedDescription($base, $group) : $base->description,
+                'quantity' => $base->quantity,
+                'unit' => $base->unit,
+                'unit_minor' => $consolidated && $group->count() > 1 ? null : $base->unit_minor,
+                'unit_rate' => $consolidated && $group->count() > 1 ? null : $base->unit_rate,
+                'amount_minor' => $net->getMinorAmount()->toInt(),
+                'tax_rate' => $taxResult->rate,
+                'tax_minor' => $taxResult->amount->getMinorAmount()->toInt(),
+                'tax_label' => $taxResult->label,
+                'currency' => $currency,
+                'covers' => $base->covers,
+                'dimension_id' => $base->dimension_id,
+                'metadata' => $consolidated ? $this->consolidatedMetadata($base, $group) : $base->metadata,
+                'sort' => $sort++,
+            ]);
+
+            $subtotal = $subtotal->plus($net);
+            $taxTotal = $taxTotal->plus($taxResult->amount);
+        }
+
+        $total = $subtotal->plus($taxTotal);
+
+        $invoice->forceFill([
+            'subtotal_minor' => $subtotal->getMinorAmount()->toInt(),
+            'tax_minor' => $taxTotal->getMinorAmount()->toInt(),
+            'total_minor' => $total->getMinorAmount()->toInt(),
+        ])->save();
+    }
+
+    /**
+     * Finalize a Draft invoice: assign a number when missing, flip to open, and
+     * stamp issued_at. Sends the invoice's current lines as-is (no rebuild).
+     */
+    public function finalize(Invoice $invoice): IssuedInvoice
+    {
+        $invoice->forceFill([
+            'number' => $invoice->number ?? $this->nextNumber(),
+            'state' => InvoiceState::Open,
+            'issued_at' => $invoice->issued_at ?? now(),
+        ])->save();
+
+        return new IssuedInvoice(
+            invoiceId: $invoice->id,
+            number: $invoice->number,
+            externalId: $invoice->external_id,
+            externalUrl: $invoice->external_url,
+        );
     }
 
     /**

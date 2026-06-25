@@ -14,8 +14,11 @@ use Meteric\Enums\InvoiceState;
 /**
  * @property string $id
  * @property string $account_id
+ * @property ?string $customer_type
+ * @property ?string $customer_id
  * @property ?string $number
  * @property string $driver
+ * @property ?array $metadata
  * @property ?string $external_id
  * @property ?string $external_url
  * @property InvoiceState $state

@@ -46,6 +46,11 @@ function throwingDriver(): InvoiceDriver
             throw new RuntimeException('accounting system unavailable');
         }
 
+        public function finalize(Invoice $invoice): IssuedInvoice
+        {
+            throw new RuntimeException('accounting system unavailable');
+        }
+
         public function void(IssuedInvoice $invoice): void {}
 
         public function creditNote(IssuedInvoice $invoice, CreditNoteDraft $draft): IssuedCreditNote

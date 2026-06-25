@@ -1,0 +1,168 @@
+<?php
+
+declare(strict_types=1);
+
+use Brick\Money\Money;
+use Carbon\CarbonImmutable;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Str;
+use Meteric\Enums\ChargeState;
+use Meteric\Enums\InvoiceState;
+use Meteric\Enums\LineKind;
+use Meteric\Events\InvoiceIssued;
+use Meteric\Events\InvoiceOverdue;
+use Meteric\Facades\Meteric;
+use Meteric\Models\BillingAccount;
+use Meteric\Models\Charge;
+use Meteric\Models\Invoice;
+
+uses(RefreshDatabase::class);
+
+function draftAccount(): BillingAccount
+{
+    return BillingAccount::create([
+        'owner_type' => 'user', 'owner_id' => '1', 'currency' => 'EUR',
+        'tax_profile' => ['country' => 'DE', 'merchant_country' => 'DE', 'name' => 'Acme GmbH'],
+    ]);
+}
+
+function draftCharge(BillingAccount $account, int $amountMinor, string $title): Charge
+{
+    return Charge::create([
+        'account_id' => $account->id,
+        'origin_type' => 'manual', 'origin_id' => (string) Str::uuid(),
+        'kind' => LineKind::Recurring, 'billing_mode' => 'in_advance',
+        'state' => ChargeState::Pending, 'title' => $title, 'description' => $title,
+        'quantity' => 1, 'unit' => 'month', 'unit_minor' => $amountMinor, 'amount_minor' => $amountMinor,
+        'currency' => 'EUR', 'idempotency_key' => (string) Str::uuid(),
+    ]);
+}
+
+it('drafts an invoice from pending charges without issuing it', function () {
+    Event::fake([InvoiceIssued::class]);
+
+    $account = draftAccount();
+    draftCharge($account, 1000, 'VPS S');
+    draftCharge($account, 500, 'Backups');
+
+    $draft = Meteric::draftInvoice($account);
+
+    expect($draft->state)->toBe(InvoiceState::Draft)
+        ->and($draft->due_at)->toBeNull()
+        ->and($draft->lines()->count())->toBe(2)
+        ->and($draft->subtotal_minor)->toBe(1500)
+        ->and(Charge::where('invoice_id', $draft->id)->where('state', ChargeState::Invoiced->value)->count())->toBe(2);
+
+    Event::assertNotDispatched(InvoiceIssued::class);
+
+    // The charges are reserved, so a later invoicePending finds nothing.
+    expect(Meteric::invoicePending($account))->toBeNull();
+});
+
+it('drafts an empty invoice when nothing is pending', function () {
+    $account = draftAccount();
+
+    $draft = Meteric::draftInvoice($account);
+
+    expect($draft->state)->toBe(InvoiceState::Draft)
+        ->and($draft->lines()->count())->toBe(0)
+        ->and($draft->subtotal_minor)->toBe(0)
+        ->and($draft->total_minor)->toBe(0);
+});
+
+it('transfers charges between drafts and rebuilds both', function () {
+    $account = draftAccount();
+    draftCharge($account, 1000, 'VPS S');
+    draftCharge($account, 500, 'Backups');
+
+    $draftA = Meteric::draftInvoice($account);
+    $draftB = Meteric::copyInvoice($draftA);
+
+    Meteric::transferCharges($draftA, $draftB);
+
+    expect($draftA->fresh()->lines()->count())->toBe(0)
+        ->and($draftA->fresh()->subtotal_minor)->toBe(0)
+        ->and($draftB->fresh()->lines()->count())->toBe(2)
+        ->and($draftB->fresh()->subtotal_minor)->toBe(1500)
+        ->and(Charge::where('invoice_id', $draftB->id)->where('state', ChargeState::Invoiced->value)->count())->toBe(2);
+});
+
+it('detaches charges back to pending when transferred to null', function () {
+    $account = draftAccount();
+    draftCharge($account, 1000, 'VPS S');
+
+    $draft = Meteric::draftInvoice($account);
+
+    Meteric::transferCharges($draft, null);
+
+    expect($draft->fresh()->lines()->count())->toBe(0)
+        ->and(Charge::where('account_id', $account->id)->where('state', ChargeState::Pending->value)->count())->toBe(1);
+
+    // A later invoicePending now picks the released charge up.
+    $invoice = Meteric::invoicePending($account);
+    expect($invoice)->not->toBeNull()
+        ->and($invoice->subtotal_minor)->toBe(1000);
+});
+
+it('re-issues a voided invoice onto a fresh draft and tracks payment + overdue', function () {
+    Event::fake([InvoiceIssued::class, InvoiceOverdue::class]);
+
+    $account = draftAccount();
+    draftCharge($account, 2000, 'VPS L');
+
+    // The original invoice goes out with the wrong address.
+    $source = Meteric::invoicePending($account);
+    expect($source->state)->toBe(InvoiceState::Open);
+
+    Meteric::voidInvoice($source);
+    expect($source->fresh()->state)->toBe(InvoiceState::Void);
+
+    // Copy the header into an empty draft, carry the charges, finalize.
+    $copy = Meteric::copyInvoice($source);
+    Meteric::transferCharges($source, $copy);
+
+    $final = Meteric::finalizeInvoice($copy);
+
+    expect($final->state)->toBe(InvoiceState::Open)
+        ->and($final->due_at)->not->toBeNull()
+        ->and($final->subtotal_minor)->toBe(2000)
+        ->and(Charge::where('invoice_id', $final->id)->where('state', ChargeState::Invoiced->value)->count())->toBe(1);
+    Event::assertDispatched(InvoiceIssued::class);
+
+    // Tracking works on the finalized copy: a partial payment, then overdue.
+    Meteric::recordPayment($final, Money::ofMinor(500, 'EUR'));
+    expect($final->fresh()->state)->toBe(InvoiceState::PartiallyPaid);
+
+    Meteric::markOverdue(CarbonImmutable::parse($final->due_at)->addDay());
+    expect($final->fresh()->overdue_at)->not->toBeNull();
+    Event::assertDispatched(InvoiceOverdue::class);
+});
+
+it('refuses to transfer onto a non-draft invoice', function () {
+    $account = draftAccount();
+    draftCharge($account, 1000, 'VPS S');
+    $open = Meteric::invoicePending($account);
+
+    $draft = Meteric::draftInvoice($account); // empty draft as a source
+
+    expect(fn () => Meteric::transferCharges($draft, $open))->toThrow(LogicException::class);
+});
+
+it('refuses to transfer charges off an issued invoice', function () {
+    $account = draftAccount();
+    draftCharge($account, 1000, 'VPS S');
+    $open = Meteric::invoicePending($account);
+
+    $target = Meteric::draftInvoice($account); // empty draft as a target
+
+    expect(fn () => Meteric::transferCharges($open, $target))->toThrow(LogicException::class);
+});
+
+it('refuses to finalize a non-draft invoice', function () {
+    $account = draftAccount();
+    draftCharge($account, 1000, 'VPS S');
+    $open = Meteric::invoicePending($account);
+
+    expect(fn () => Meteric::finalizeInvoice($open))->toThrow(LogicException::class);
+});

@@ -51,9 +51,48 @@ final class LexofficeInvoiceDriver implements InvoiceDriver
         $issued = $this->local->issue($draft);
 
         /** @var Invoice $invoice */
-        $invoice = Invoice::with('lines')->findOrFail($issued->invoiceId);
+        $invoice = Invoice::with('lines', 'account')->findOrFail($issued->invoiceId);
 
-        $body = $this->invoiceBody($invoice, $draft);
+        $body = $this->invoiceBody($invoice);
+
+        $response = $this->client()->post('/v1/invoices?finalize=true', $body);
+        $data = $this->ok($response, 'invoice');
+
+        $externalId = (string) $data['id'];
+        $externalUrl = (string) ($data['resourceUri'] ?? '');
+
+        $invoice->forceFill([
+            'external_id' => $externalId,
+            'external_url' => $externalUrl,
+        ])->save();
+
+        return new IssuedInvoice(
+            invoiceId: $invoice->id,
+            number: $invoice->number,
+            externalId: $externalId,
+            externalUrl: $externalUrl,
+        );
+    }
+
+    /**
+     * Finalize an existing Draft invoice: POST its current lines to lexoffice and
+     * record the external id/url + number, then flip it to open. Refuses an
+     * invoice already sent (it carries an external id). Sends the lines as they
+     * stand, no rebuild from charges.
+     */
+    public function finalize(Invoice $invoice): IssuedInvoice
+    {
+        if ($invoice->external_id !== null) {
+            throw new LogicException('Invoice has already been sent to Lexware Office.');
+        }
+
+        $invoice->loadMissing('lines', 'account');
+
+        // Assign the number, flip to open, and stamp issued_at via the local
+        // driver, then POST the current lines. The voucherDate uses issued_at.
+        $this->local->finalize($invoice);
+
+        $body = $this->invoiceBody($invoice);
 
         $response = $this->client()->post('/v1/invoices?finalize=true', $body);
         $data = $this->ok($response, 'invoice');
@@ -122,9 +161,9 @@ final class LexofficeInvoiceDriver implements InvoiceDriver
     /**
      * @return array<string,mixed>
      */
-    private function invoiceBody(Invoice $invoice, InvoiceDraft $draft): array
+    private function invoiceBody(Invoice $invoice): array
     {
-        $profile = $draft->account->tax_profile ?? [];
+        $profile = $invoice->account?->tax_profile ?? [];
         $date = ($invoice->issued_at ?? Carbon::now())->format('Y-m-d\TH:i:s.vP');
 
         return [

@@ -219,21 +219,14 @@ so the credit note reverses the same VAT the invoice charged, and fires a
 money moves. It works only on an unpaid invoice and refuses once any payment
 exists; correct a paid or finalized invoice with a credit note instead.
 
-A second argument decides what happens to the invoice's charges:
-
 ```php
-use Meteric\Enums\VoidCharges;
-
-Meteric::voidInvoice($invoice);                        // Keep (default)
-Meteric::voidInvoice($invoice, VoidCharges::Release);  // back to pending
-Meteric::voidInvoice($invoice, VoidCharges::Discard);  // void the charges too
+Meteric::voidInvoice($invoice);
 ```
 
-- `Keep` (default) leaves the charges as they are. Use it when only the document
-  was wrong (a wrong address, say) and an employee re-issues it manually.
-- `Release` detaches the charges and returns them to pending so the next run
-  bills them onto a fresh invoice.
-- `Discard` voids the charges too, when the charges themselves were the error.
+The charges stay attached to the now-void invoice. They are a record of what the
+voided document billed. To re-bill them, move them onto a fresh draft with
+[`transferCharges`](#draft-invoices-and-charge-transfer); to drop them, void the
+charges yourself.
 
 Voiding routes through the driver, so the Lexware Office driver voids a draft
 that never reached the API and refuses a finalized one (use a credit note).
@@ -242,6 +235,66 @@ With the [Lexware Office driver](#lexware-office-lexoffice), `creditNote()` also
 POSTs a real credit-note document to lexoffice (`POST /v1/credit-notes?finalize=true`)
 and stores its `external_id`. The credit note mirrors the invoice's tax rate, so a
 net 10.00 EUR credit at 19% VAT comes to 11.90 EUR gross.
+
+### Draft invoices and charge transfer
+
+`invoicePending` issues immediately. To review or edit an invoice before it goes
+out, open a draft instead:
+
+```php
+$draft = Meteric::draftInvoice($account);
+```
+
+`draftInvoice(BillingAccount $account, ?string $currency = null): Invoice` pulls
+the account's pending charges, attaches them, and builds the lines. The charges
+flip to `invoiced` so they leave the pending pool: a later `invoicePending` skips
+them. The draft has no number, no due date, and fires no `InvoiceIssued`. With
+nothing pending you get an empty draft with zero totals.
+
+A draft's charges are its line items. Lines always rebuild from the charges
+attached to the invoice, so editing a draft means moving charges in or out, not
+editing lines directly.
+
+```php
+Meteric::transferCharges($from, $to);   // move $from's charges onto draft $to
+Meteric::transferCharges($from, null);  // detach them back to pending
+```
+
+`transferCharges(Invoice $from, ?Invoice $to): void` reassigns every charge on
+`$from`. `$to` must be a draft, or `null` to return the charges to pending (the
+next `invoicePending` bills them again). `$from` must be a draft or a void
+invoice; an open or paid invoice throws, so void it first. Both drafts rebuild
+their lines and totals from the charges they now hold. A void `$from` keeps its
+historical lines as the frozen record of what it billed.
+
+Send a draft with `finalizeInvoice`:
+
+```php
+$invoice = Meteric::finalizeInvoice($draft);
+```
+
+`finalizeInvoice(Invoice $draft): Invoice` requires a draft. It sends the draft's
+current lines through the driver (no rebuild from charges), sets the due date
+from `meteric.invoice.net_days`, flips the invoice to `open`, and fires
+`InvoiceIssued`. Payment and overdue tracking apply from here, so `recordPayment`
+and `markOverdue` work on the finalized invoice. A driver failure leaves the
+draft untouched.
+
+#### Re-issue with a corrected header
+
+When a document is wrong but the charges are right (a wrong billing address, say),
+void the original and carry its charges onto a corrected copy:
+
+```php
+$copy = Meteric::copyInvoice($source);   // empty draft, clones the header
+Meteric::voidInvoice($source);
+Meteric::transferCharges($source, $copy);
+$fixed = Meteric::finalizeInvoice($copy);
+```
+
+`copyInvoice(Invoice $source): Invoice` returns an empty draft cloning the
+source's account, customer, currency, and metadata. No charges or lines come
+across; `transferCharges` carries them.
 
 ## Consolidated billing
 

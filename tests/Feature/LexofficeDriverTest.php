@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Meteric\Contracts\TaxResolver;
 use Meteric\Enums\ChargeState;
+use Meteric\Enums\InvoiceState;
 use Meteric\Enums\LineKind;
 use Meteric\Invoicing\CreditNoteDraft;
 use Meteric\Invoicing\Drivers\DatabaseInvoiceDriver;
@@ -243,6 +244,60 @@ it('throws on a failed lexoffice response while keeping the local invoice', func
     $invoice = Invoice::firstOrFail();
     expect($invoice->external_id)->toBeNull()
         ->and($invoice->number)->not->toBeNull();
+});
+
+it('finalizes a draft invoice by posting its current lines to lexoffice', function () {
+    Http::fake([
+        'api.lexoffice.io/v1/invoices*' => Http::response(lexInvoiceResponse(), 201),
+    ]);
+
+    $account = lexAccount();
+    lexCharge($account, 1560, 'VPS XL', 'Hosting');
+
+    // Build a draft directly (no document sent yet) with its lines.
+    $invoice = Invoice::create([
+        'account_id' => $account->id, 'customer_type' => 'user', 'customer_id' => '1',
+        'driver' => 'lexoffice', 'state' => InvoiceState::Draft, 'currency' => 'EUR',
+    ]);
+    Charge::where('account_id', $account->id)->each(
+        fn (Charge $c) => $c->forceFill(['invoice_id' => $invoice->id, 'state' => ChargeState::Invoiced])->save()
+    );
+    app(DatabaseInvoiceDriver::class)->rebuildLines($invoice);
+
+    $issued = lexDriver()->finalize($invoice->fresh());
+
+    expect($issued->externalId)->toBe('e9066f04-8cc7-4616-93f8-ac9ecc8479c8');
+
+    $fresh = $invoice->fresh();
+    expect($fresh->state)->toBe(InvoiceState::Open)
+        ->and($fresh->external_id)->toBe('e9066f04-8cc7-4616-93f8-ac9ecc8479c8')
+        ->and($fresh->number)->not->toBeNull()
+        ->and($fresh->issued_at)->not->toBeNull();
+
+    Http::assertSent(function ($request) {
+        $body = $request->data();
+
+        return $request->method() === 'POST'
+            && $request->url() === 'https://api.lexoffice.io/v1/invoices?finalize=true'
+            && $body['lineItems'][0]['name'] === 'VPS XL'
+            && $body['lineItems'][0]['unitName'] === 'Stück';
+    });
+});
+
+it('refuses to finalize an invoice already sent to lexoffice', function () {
+    Http::fake([
+        'api.lexoffice.io/v1/invoices*' => Http::response(lexInvoiceResponse(), 201),
+    ]);
+
+    $account = lexAccount();
+    lexCharge($account, 1560, 'VPS XL', 'Hosting');
+
+    $driver = lexDriver();
+    $issued = $driver->issue(lexDraft($account));
+
+    $invoice = Invoice::findOrFail($issued->invoiceId);
+
+    expect(fn () => $driver->finalize($invoice))->toThrow(LogicException::class);
 });
 
 it('refuses to void a finalized lexoffice invoice and points at credit notes', function () {

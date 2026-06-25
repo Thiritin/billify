@@ -345,7 +345,13 @@ Two facts follow from the charge being the source of truth:
 
 ## Limitations
 
-- Storage is Postgres-only.
+- The database requires PostgreSQL. The schema uses Postgres-only features
+  (range types, exclusion constraints, partial indexes), so MySQL and SQLite are
+  not supported.
+- Meteric stores invoice *data*, not document files. It does not render or store a
+  PDF; turning an invoice into a document is your app's job, or the invoice
+  driver's (the Lexware Office driver produces the real document in Lexware
+  Office).
 - Lexoffice cannot void a finalized document; `void()` refuses one that reached the
   API. Use a credit note.
 - Lexoffice has no native line nesting; sub-lines flatten to indented lines.
